@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crescendo FDJ — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── RESET & BASE ── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a2b4a;color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+.main{margin-left:220px;flex:1;padding:24px;min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-logo h1{font-size:18px;font-weight:700;color:#fff}
+.sidebar-logo p{font-size:11px;color:#8ba4c8;margin-top:2px}
+.sidebar-nav{padding:12px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:#8ba4c8;cursor:pointer;font-size:14px;transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav-item.active{color:#fff;background:rgba(79,140,255,.18);border-left-color:#4f8cff}
+.nav-item .icon{font-size:18px;width:22px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:#8ba4c8}
+
+/* ── PAGES ── */
+.page{display:none}.page.active{display:block}
+.page-title{font-size:22px;font-weight:700;margin-bottom:20px;color:#1a2332}
+.page-subtitle{font-size:13px;color:#6b7a8d;margin-top:2px}
+
+/* ── CARDS ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card-label{font-size:12px;color:#8b9db0;text-transform:uppercase;letter-spacing:.5px}
+.card-value{font-size:28px;font-weight:700;margin:6px 0 2px;color:#1a2332}
+.card-sub{font-size:12px;color:#8b9db0}
+.card.accent{background:linear-gradient(135deg,#1a2b4a,#2d4a7a);color:#fff}
+.card.accent .card-label,.card.accent .card-sub{color:rgba(255,255,255,.6)}
+.card.accent .card-value{color:#fff}
+.card.green{background:linear-gradient(135deg,#1a6b3a,#27a152)}
+.card.green .card-label,.card.green .card-sub,.card.green .card-value{color:#fff}
+.card.orange{background:linear-gradient(135deg,#c05a0a,#e07522)}
+.card.orange .card-label,.card.orange .card-sub,.card.orange .card-value{color:#fff}
+
+/* ── JACKPOT BAR ── */
+.jackpot-section{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:24px}
+.jackpot-label{font-size:13px;color:#6b7a8d;margin-bottom:8px}
+.jackpot-amount{font-size:36px;font-weight:800;color:#1a2332;margin-bottom:12px}
+.jackpot-bar-bg{background:#e8edf2;border-radius:8px;height:14px;overflow:hidden}
+.jackpot-bar-fill{height:100%;border-radius:8px;transition:width .6s ease;background:linear-gradient(90deg,#4f8cff,#2563eb)}
+.jackpot-meta{display:flex;justify-content:space-between;font-size:12px;color:#8b9db0;margin-top:6px}
+.play-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:10px}
+.play-badge.stop{background:#fee2e2;color:#dc2626}
+.play-badge.go{background:#dcfce7;color:#16a34a}
+.play-badge.wait{background:#fef3c7;color:#d97706}
+
+/* ── SECTION BOXES ── */
+.box{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:20px}
+.box-title{font-size:14px;font-weight:600;color:#1a2332;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.box-title span{font-size:16px}
+
+/* ── TABLES ── */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8b9db0;border-bottom:2px solid #e8edf2}
+td{padding:8px 12px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
+tr:hover td{background:#f8fafc}
+.num-ball{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#e8f0fe;color:#2563eb;font-weight:700;font-size:12px;margin:1px}
+.lettre-badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:#f0fdf4;color:#16a34a;font-weight:700;font-size:13px}
+.jackpot-won{color:#16a34a;font-weight:600}
+.jackpot-lost{color:#6b7a8d}
+
+/* ── FREQ BARS ── */
+.freq-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.freq-num{width:24px;text-align:right;font-size:12px;font-weight:600;color:#1a2332}
+.freq-bar-wrap{flex:1;background:#f0f4f8;border-radius:4px;height:18px;overflow:hidden}
+.freq-bar{height:100%;border-radius:4px;transition:width .5s ease;background:#4f8cff;display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;font-weight:600}
+.freq-bar.hot{background:linear-gradient(90deg,#f97316,#ef4444)}
+.freq-bar.cold{background:#94a3b8}
+.freq-count{width:30px;font-size:12px;color:#6b7a8d}
+
+/* ── GRID CARDS ── */
+.grilles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.grille-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08);border-top:4px solid #4f8cff}
+.grille-card:nth-child(2){border-top-color:#10b981}
+.grille-card:nth-child(3){border-top-color:#f59e0b}
+.grille-card:nth-child(4){border-top-color:#8b5cf6}
+.grille-card:nth-child(5){border-top-color:#ef4444}
+.grille-title{font-size:13px;font-weight:700;color:#1a2332;margin-bottom:12px}
+.grille-nums{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.grille-meta{display:flex;gap:12px;font-size:11px;color:#8b9db0}
+
+/* ── FORM CONTROLS ── */
+.form-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;color:#6b7a8d;font-weight:600}
+.form-group input,.form-group select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1a2332;background:#fff;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:#4f8cff}
+.btn{padding:9px 18px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:#1a2b4a;color:#fff}
+.btn-primary:hover{background:#2d4a7a}
+.btn-success{background:#16a34a;color:#fff}
+.btn-success:hover{background:#15803d}
+.btn-warning{background:#d97706;color:#fff}
+.btn-warning:hover{background:#b45309}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;margin:2px}
+.chip-blue{background:#dbeafe;color:#1d4ed8}
+.chip-green{background:#dcfce7;color:#15803d}
+.chip-gray{background:#f1f5f9;color:#64748b}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;background:#1a2332;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;display:none;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+
+/* ── LOADER ── */
+.loader{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-left:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PAIRS TABLE ── */
+.pairs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.pair-card{background:#f8fafc;border-radius:8px;padding:10px;text-align:center;border:1px solid #e2e8f0}
+.pair-nums{font-size:15px;font-weight:700;color:#1a2332}
+.pair-count{font-size:11px;color:#4f8cff;margin-top:2px;font-weight:600}
+.pair-delta{font-size:10px;color:#8b9db0}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{width:60px}
+  .sidebar-logo p,.nav-item span:not(.icon),.sidebar-footer{display:none}
+  .main{margin-left:60px}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>🎰 Crescendo</h1>
+    <p>FDJ Analytics Dashboard</p>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="icon">📊</span><span>Dashboard</span>
+    </div>
+    <div class="nav-item" onclick="showPage('generateur')">
+      <span class="icon">🎯</span><span>Générateur</span>
+    </div>
+    <div class="nav-item" onclick="showPage('stats')">
+      <span class="icon">📈</span><span>Statistiques</span>
+    </div>
+    <div class="nav-item" onclick="showPage('historique')">
+      <span class="icon">📋</span><span>Historique</span>
+    </div>
+    <div class="nav-item" onclick="showPage('strategie')">
+      <span class="icon">🧠</span><span>Stratégie</span>
+    </div>
+    <div class="nav-item" onclick="showPage('donnees')">
+      <span class="icon">⚙️</span><span>Données</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">v1.0 — 224 tirages</div>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="page-title">Dashboard <span style="font-size:14px;color:#8b9db0;font-weight:400" id="last-update"></span></div>
+
+  <!-- Jackpot prochain -->
+  <div class="jackpot-section" id="jackpot-section">
+    <div class="jackpot-label">⚡ Jackpot estimé prochain tirage</div>
+    <div class="jackpot-amount" id="jackpot-amount">—</div>
+    <div class="jackpot-bar-bg"><div class="jackpot-bar-fill" id="jackpot-bar" style="width:0%"></div></div>
+    <div class="jackpot-meta"><span>100K</span><span>400K</span><span>700K max</span></div>
+    <div id="jackpot-badge"></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="cards" id="kpi-cards">
+    <div class="card accent"><div class="card-label">Samedis</div><div class="card-value" id="k-samedis">—</div><div class="card-sub">depuis nov. 2025</div></div>
+    <div class="card"><div class="card-label">Tirages</div><div class="card-value" id="k-tirages">—</div><div class="card-sub">7 par samedi</div></div>
+    <div class="card green"><div class="card-label">Jackpots remportés</div><div class="card-value" id="k-remportes">—</div><div class="card-sub" id="k-remportes-pct">—</div></div>
+    <div class="card orange"><div class="card-label">Total distribué</div><div class="card-value" id="k-distribue">—</div><div class="card-sub">sur toute la période</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- Derniers tirages -->
+    <div class="box">
+      <div class="box-title"><span>🕐</span> 7 derniers tirages</div>
+      <table id="last-draws-table">
+        <thead><tr><th>Date</th><th>Heure</th><th>Numéros</th><th>Lettre</th><th>Jackpot</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <!-- Recommandation -->
+    <div class="box">
+      <div class="box-title"><span>⭐</span> Top 10 numéros recommandés</div>
+      <div id="top10-display" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px"></div>
+      <div class="box-title" style="margin-top:8px"><span>🔤</span> Lettre recommandée</div>
+      <div id="lettre-display" style="font-size:40px;font-weight:800;color:#4f8cff;margin:4px 0 12px"></div>
+      <div style="font-size:12px;color:#8b9db0">Moins fréquente sur les 20 derniers tirages</div>
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="showPage('generateur')">→ Générer des grilles</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GÉNÉRATEUR ══════════════ -->
+<div id="page-generateur" class="page">
+  <div class="page-title">Générateur de grilles</div>
+
+  <div class="box">
+    <div class="box-title"><span>⚙️</span> Paramètres</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Jackpot estimé (€)</label>
+        <input type="number" id="jackpot-input" value="500000" min="100000" max="700000" step="100000">
+      </div>
+      <div class="form-group">
+        <label>Heure cible</label>
+        <select id="heure-input">
+          <option value="">Toutes</option>
+          <option>13h</option><option>14h</option><option>15h</option>
+          <option>16h</option><option>17h</option><option>18h</option><option>19h</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="btn-generer" onclick="genererGrilles()">
+        🎯 Générer les grilles
+      </button>
+    </div>
+    <!-- Jackpot slider visuel -->
+    <div style="margin-top:8px">
+      <input type="range" min="100000" max="700000" step="100000" id="jackpot-slider"
+             oninput="document.getElementById('jackpot-input').value=this.value;updateJackpotPreview()"
+             style="width:100%;accent-color:#4f8cff">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#8b9db0;margin-top:2px">
+        <span>100K</span><span>200K</span><span>300K</span><span>400K</span><span>500K</span><span>600K</span><span>700K</span>
+      </div>
+    </div>
+    <div id="jackpot-preview" style="margin-top:10px;font-size:13px;color:#6b7a8d"></div>
+  </div>
+
+  <div id="grilles-result" style="display:none">
+    <div class="box">
+      <div class="box-title"><span>📊</span> Résumé <span id="gen-summary" style="font-weight:400;font-size:12px;color:#8b9db0"></span></div>
+      <div class="cards" id="gen-kpis" style="margin-bottom:0"></div>
+    </div>
+    <div class="grilles-grid" id="grilles-container"></div>
+  </div>
+
+  <div id="no-play-msg" style="display:none" class="box">
+    <div style="text-align:center;padding:20px">
+      <div style="font-size:48px;margin-bottom:12px">⛔</div>
+      <div style="font-size:18px;font-weight:700;color:#dc2626;margin-bottom:8px">Ne pas jouer ce tirage</div>
+      <div style="color:#6b7a8d">Jackpot trop bas — attendre ≥ 300 000 € pour optimiser l'espérance de gain</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ STATISTIQUES ══════════════ -->
+<div id="page-stats" class="page">
+  <div class="page-title">Statistiques <span style="font-size:13px;color:#8b9db0;font-weight:400">— 224 tirages analysés</span></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <!-- Fréquences -->
+    <div class="box" style="grid-column:1/-1">
+      <div class="box-title"><span>📊</span> Fréquence des numéros (attendu : 89,6)</div>
+      <div id="freq-chart-container" style="height:300px"><canvas id="freq-chart"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <!-- Lettres -->
+    <div class="box">
+      <div class="box-title"><span>🔤</span> Fréquence des lettres</div>
+      <div style="height:200px"><canvas id="lettre-chart"></canvas></div>
+    </div>
+    <!-- Zones -->
+    <div class="box">
+      <div class="box-title"><span>🗺️</span> Zones de numéros</div>
+      <div style="height:200px"><canvas id="zone-chart"></canvas></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- Top paires -->
+    <div class="box">
+      <div class="box-title"><span>🤝</span> Top 20 paires co-occurrentes <span style="font-size:11px;font-weight:400;color:#8b9db0">(attendu : 33,6)</span></div>
+      <div id="pairs-container" class="pairs-grid"></div>
+    </div>
+    <!-- Top triplets -->
+    <div class="box">
+      <div class="box-title"><span>🔱</span> Top 20 triplets <span style="font-size:11px;font-weight:400;color:#8b9db0">(attendu : 11,7)</span></div>
+      <table id="triplets-table">
+        <thead><tr><th>#</th><th>Triplet</th><th>Sorties</th><th>Écart</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:16px" class="box">
+    <div class="box-title"><span>🎯</span> Score global de recommandation</div>
+    <div style="height:300px"><canvas id="score-chart"></canvas></div>
+  </div>
+</div>
+
+<!-- ══════════════ HISTORIQUE ══════════════ -->
+<div id="page-historique" class="page">
+  <div class="page-title">Historique des tirages</div>
+  <div class="box">
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group">
+        <label>Rechercher (date / numéro)</label>
+        <input type="text" id="search-input" placeholder="ex: 08/11/2025 ou 18" oninput="filterTable()">
+      </div>
+      <div class="form-group">
+        <label>Jackpot</label>
+        <select id="filter-jackpot" onchange="filterTable()">
+          <option value="">Tous</option>
+          <option value="1">Remporté</option>
+          <option value="0">Non remporté</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Heure</th><th>Numéros</th><th>Lettre</th>
+            <th>Jackpot</th><th>Résultat</th><th>Distribué</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+    <div id="history-count" style="margin-top:8px;font-size:12px;color:#8b9db0"></div>
+  </div>
+</div>
+
+<!-- ══════════════ STRATÉGIE ══════════════ -->
+<div id="page-strategie" class="page">
+  <div class="page-title">Stratégie <span style="font-size:13px;color:#8b9db0;font-weight:400">— probabilités, budget & suivi de sessions</span></div>
+
+  <!-- KPIs stratégie -->
+  <div class="cards" id="strat-kpis" style="margin-bottom:20px"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+    <!-- Fréquence opportunités -->
+    <div class="box">
+      <div class="box-title"><span>📅</span> Fréquence des opportunités (sur l'historique)</div>
+      <table id="opps-table">
+        <thead><tr><th>Seuil jackpot</th><th>Tirages éligibles</th><th>Samedis</th><th>Fréquence/mois</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Stratégie 19h -->
+    <div class="box">
+      <div class="box-title"><span>🎯</span> Stratégie "Attendre le 19h" (700K garanti)</div>
+      <div id="strat-19h" style="font-size:13px;line-height:1.9;color:#1a2332"></div>
+      <div style="margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #16a34a;font-size:12px;color:#15803d">
+        <strong>Mode d'emploi :</strong><br>
+        Vérifier les résultats de 13h à 18h.<br>
+        Si <strong>AUCUN jackpot remporté</strong> sur 13h-18h → 19h sera à <strong>700 000 €</strong> → Acheter 5-7 grilles !
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Probabilités cumulées -->
+  <div class="box" style="margin-bottom:16px">
+    <div class="box-title"><span>📈</span> Probabilités cumulées selon le nombre de sessions jouées</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <table id="probas-table">
+          <thead><tr><th>Sessions</th><th>P(Jackpot)</th><th>P(Rang 6+)</th><th>Budget</th><th>Espérance</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:13px;color:#1a2332;line-height:2" id="probas-insights"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back-test -->
+  <div class="box" style="margin-bottom:16px">
+    <div class="box-title"><span>🔬</span> Back-test stratégie ≥ 500K sur l'historique réel</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px" id="bt-kpis"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div id="bt-rangs" style="font-size:13px"></div>
+      <div style="padding:12px;background:#fffbeb;border-radius:8px;border-left:3px solid #f59e0b;font-size:12px;color:#92400e" id="bt-note"></div>
+    </div>
+  </div>
+
+  <!-- Budget annuel -->
+  <div class="box" style="margin-bottom:16px">
+    <div class="box-title"><span>💰</span> Plan budgétaire annuel recommandé</div>
+    <div id="budget-annuel" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px"></div>
+  </div>
+
+  <!-- Journal des sessions -->
+  <div class="box">
+    <div class="box-title"><span>📓</span> Journal de mes sessions
+      <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="showAddSession()">+ Ajouter une session</button>
+    </div>
+
+    <!-- Formulaire ajout -->
+    <div id="add-session-form" style="display:none;background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:16px">
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="s-date"></div>
+        <div class="form-group"><label>Heure</label>
+          <select id="s-heure"><option>13h</option><option>14h</option><option>15h</option><option>16h</option><option>17h</option><option>18h</option><option>19h</option></select>
+        </div>
+        <div class="form-group"><label>Jackpot (€)</label><input type="number" id="s-jackpot" value="700000" step="100000"></div>
+        <div class="form-group"><label>Nb grilles</label><input type="number" id="s-grilles" value="5" min="1" max="10"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Rang obtenu</label>
+          <select id="s-rang">
+            <option value="">Aucun gain</option>
+            <option value="10">Rang 10 — Jackpot !</option>
+            <option value="9L">Rang 9L</option><option value="9">Rang 9</option>
+            <option value="8L">Rang 8L</option><option value="8">Rang 8</option>
+            <option value="7L">Rang 7L</option><option value="7">Rang 7</option>
+            <option value="6L">Rang 6L</option><option value="6">Rang 6</option>
+            <option value="0L">Rang 0L — lettre seule</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Gain (€)</label><input type="number" id="s-gain" value="0" step="0.5"></div>
+        <button class="btn btn-success" onclick="saveSession()">Enregistrer</button>
+        <button class="btn" style="background:#e2e8f0;color:#475569" onclick="document.getElementById('add-session-form').style.display='none'">Annuler</button>
+      </div>
+    </div>
+
+    <!-- Stats sessions -->
+    <div class="cards" id="sessions-stats" style="margin-bottom:16px"></div>
+
+    <!-- Table sessions -->
+    <table id="sessions-table">
+      <thead><tr><th>Date</th><th>Heure</th><th>Jackpot</th><th>Grilles</th><th>Coût</th><th>Rang</th><th>Gain</th><th>Résultat</th><th></th></tr></thead>
+      <tbody id="sessions-body"></tbody>
+    </table>
+    <div id="sessions-empty" style="text-align:center;padding:30px;color:#8b9db0;display:none">
+      Aucune session enregistrée.<br>Utilisez le bouton <strong>+ Ajouter une session</strong> après chaque fois que vous jouez.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ DONNÉES ══════════════ -->
+<div id="page-donnees" class="page">
+  <div class="page-title">Gestion des données</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <div class="box">
+      <div class="box-title"><span>🕷️</span> Scraping</div>
+      <p style="font-size:13px;color:#6b7a8d;margin-bottom:16px">
+        Met à jour les données depuis secretsdujeu.com (nécessite Playwright + Chromium).
+        Lance les scripts en arrière-plan, peut prendre 3-5 minutes.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary" id="btn-scrape-tirages" onclick="runScript('tirages')">
+          📥 Scraper les tirages (scrape_v4.js)
+        </button>
+        <button class="btn btn-primary" id="btn-scrape-gains" onclick="runScript('gains')">
+          💰 Scraper les gains (scrape_gains_v2.js)
+        </button>
+        <button class="btn btn-warning" id="btn-enrichir" onclick="runScript('enrichir')">
+          🔧 Enrichir les CSV (enrichir.js)
+        </button>
+        <button class="btn btn-success" id="btn-analyser" onclick="runScript('analyser')">
+          📊 Relancer l'analyse statistique
+        </button>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="box-title"><span>📁</span> Fichiers CSV</div>
+      <table>
+        <thead><tr><th>Fichier</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>crescendo_historique_enrichi.csv</code></td><td>Tirages + jackpot + total distribué</td></tr>
+          <tr><td><code>crescendo_gains_enrichi.csv</code></td><td>Gains par rang + total ligne</td></tr>
+          <tr><td><code>crescendo_resume_enrichi.csv</code></td><td>Vue complète par tirage</td></tr>
+          <tr><td><code>crescendo_stats.json</code></td><td>Analyse statistique complète</td></tr>
+          <tr><td><code>crescendo_grilles.json</code></td><td>Dernières grilles générées</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:16px">
+        <div class="box-title"><span>📋</span> Pipeline complet</div>
+        <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:12px;color:#4b5563;font-family:monospace;line-height:1.8">
+          1. Scraper tirages → 2. Scraper gains<br>
+          → 3. Enrichir CSV → 4. Analyser stats<br>
+          → 5. Générer grilles
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="box" style="margin-top:0">
+    <div class="box-title"><span>🖥️</span> Log de sortie</div>
+    <div id="log-output" style="background:#0f172a;color:#94a3b8;border-radius:8px;padding:16px;
+         font-family:monospace;font-size:12px;min-height:120px;max-height:300px;overflow-y:auto;
+         white-space:pre-wrap">Prêt.</div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────
+let allHistory = [];
+let statsData  = null;
+let freqChart, lettreChart, zoneChart, scoreChart;
+
+// ─── NAVIGATION ───────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(name)) n.classList.add('active');
+  });
+  if (name === 'stats' && !statsData) loadStats();
+  if (name === 'historique' && !allHistory.length) loadHistorique();
+  if (name === 'strategie') loadStrategie();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────
+function toast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', duration);
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const r = await fetch('/api/dashboard').then(r => r.json());
+
+    document.getElementById('last-update').textContent = `— Dernier : ${r.last_date} ${r.last_heure}`;
+    document.getElementById('k-samedis').textContent = r.nb_samedis;
+    document.getElementById('k-tirages').textContent = r.nb_tirages;
+    document.getElementById('k-remportes').textContent = r.jackpots_remportes;
+    document.getElementById('k-remportes-pct').textContent =
+      `${((r.jackpots_remportes / r.nb_tirages)*100).toFixed(0)}% des tirages`;
+    document.getElementById('k-distribue').textContent =
+      (r.total_distribue / 1e6).toFixed(1) + 'M €';
+
+    // Jackpot
+    const jp = r.jackpot_next;
+    document.getElementById('jackpot-amount').textContent = jp.toLocaleString('fr-FR') + ' €';
+    const pct = ((jp - 100000) / 600000 * 100).toFixed(0);
+    document.getElementById('jackpot-bar').style.width = Math.max(5, pct) + '%';
+
+    const badge = document.getElementById('jackpot-badge');
+    if (jp < 300000) {
+      badge.innerHTML = '<span class="play-badge stop">⛔ Ne pas jouer — attendre ≥ 300K</span>';
+    } else if (jp < 500000) {
+      badge.innerHTML = '<span class="play-badge wait">⚠️ Jouer 1-2 grilles maximum</span>';
+    } else {
+      badge.innerHTML = `<span class="play-badge go">✅ Jouer ${jp >= 700000 ? '5' : jp >= 600000 ? '3' : '2'} grilles recommandées</span>`;
+    }
+
+    // Top 10 nums
+    const top10Div = document.getElementById('top10-display');
+    top10Div.innerHTML = r.top10_nums.map(n =>
+      `<div class="num-ball" style="width:36px;height:36px;font-size:14px">${n}</div>`
+    ).join('');
+    document.getElementById('lettre-display').textContent = r.lettre_recommandee;
+
+    // Derniers tirages
+    const tbody = document.querySelector('#last-draws-table tbody');
+    tbody.innerHTML = r.derniers_tirages.map(t => {
+      const nums = [t.n1,t.n2,t.n3,t.n4,t.n5,t.n6,t.n7,t.n8,t.n9,t.n10]
+        .map(n => `<span class="num-ball">${n}</span>`).join('');
+      const won = t.jackpot_remporte === '1';
+      return `<tr>
+        <td>${t.date}</td>
+        <td>${t.heure}</td>
+        <td>${nums}</td>
+        <td><span class="lettre-badge">${t.lettre}</span></td>
+        <td>${(parseInt(t.jackpot_enjeu_eur)/1000).toFixed(0)}K €</td>
+      </tr>`;
+    }).join('');
+
+    // Sync slider
+    document.getElementById('jackpot-slider').value = jp;
+    document.getElementById('jackpot-input').value = jp;
+    updateJackpotPreview();
+
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ─── GÉNÉRATEUR ───────────────────────────────────────────────
+function updateJackpotPreview() {
+  const jp = parseInt(document.getElementById('jackpot-input').value);
+  document.getElementById('jackpot-slider').value = jp;
+  const preview = document.getElementById('jackpot-preview');
+  let msg, color;
+  if (jp < 300000) { msg = '⛔ Trop bas — ne pas jouer'; color = '#dc2626'; }
+  else if (jp < 500000) { msg = '⚠️ 1-2 grilles maximum'; color = '#d97706'; }
+  else if (jp < 700000) { msg = '✅ 2-3 grilles recommandées'; color = '#16a34a'; }
+  else { msg = '🏆 Jackpot MAX — 5 grilles recommandées'; color = '#7c3aed'; }
+  preview.innerHTML = `<span style="color:${color};font-weight:600">${msg}</span>`;
+}
+
+async function genererGrilles() {
+  const btn = document.getElementById('btn-generer');
+  const jp  = parseInt(document.getElementById('jackpot-input').value);
+  const h   = document.getElementById('heure-input').value;
+
+  btn.disabled = true;
+  btn.innerHTML = 'Génération en cours <span class="loader"></span>';
+
+  document.getElementById('grilles-result').style.display = 'none';
+  document.getElementById('no-play-msg').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/generer', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ jackpot: jp, heure: h || null }),
+    }).then(r => r.json());
+
+    if (res.error) throw new Error(res.error);
+
+    const data = res.result;
+    if (!data || !data.grilles || data.grilles.length === 0) {
+      document.getElementById('no-play-msg').style.display = 'block';
+    } else {
+      displayGrilles(data);
+      document.getElementById('grilles-result').style.display = 'block';
+    }
+    toast('✅ Grilles générées !');
+  } catch(e) {
+    toast('❌ Erreur : ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🎯 Générer les grilles';
+}
+
+const BORDER_COLORS = ['#4f8cff','#10b981','#f59e0b','#8b5cf6','#ef4444'];
+
+function displayGrilles(data) {
+  const proba = (1 - (1-0.088)**data.grilles.length * 100).toFixed(0);
+  document.getElementById('gen-summary').textContent =
+    `Jackpot ${(data.jackpot/1000).toFixed(0)}K€ — ${data.grilles.length} grille(s) — ${Math.round(data.grilles.length*data.jackpot/3268760*100)/100}€ espérance`;
+
+  // KPIs
+  document.getElementById('gen-kpis').innerHTML = `
+    <div class="card"><div class="card-label">Grilles</div><div class="card-value">${data.grilles.length}</div><div class="card-sub">à jouer</div></div>
+    <div class="card"><div class="card-label">Coût total</div><div class="card-value">${data.grilles.length} €</div><div class="card-sub">1€ par grille</div></div>
+    <div class="card"><div class="card-label">P(rang 6+)</div><div class="card-value">${((1-(0.912)**data.grilles.length)*100).toFixed(0)}%</div><div class="card-sub">au moins une grille</div></div>
+    <div class="card accent"><div class="card-label">Jackpot en jeu</div><div class="card-value">${(data.jackpot/1000).toFixed(0)}K</div><div class="card-sub">€</div></div>
+  `;
+
+  // Grilles
+  document.getElementById('grilles-container').innerHTML = data.grilles.map((g, i) => `
+    <div class="grille-card" style="border-top-color:${BORDER_COLORS[i]}">
+      <div class="grille-title">Grille ${g.id}</div>
+      <div class="grille-nums">
+        ${g.numeros.map(n => `<div class="num-ball" style="background:#e8f0fe;color:#2563eb;width:32px;height:32px;font-size:13px">${n}</div>`).join('')}
+        <div class="lettre-badge" style="width:32px;height:32px;font-size:16px">${g.lettre}</div>
+      </div>
+      <div class="grille-meta">
+        <span>Somme: ${g.sum}</span>
+        <span>Conséc: ${g.conseq}</span>
+        <span>Paires: ${g.paires}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── STATS ────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    statsData = await fetch('/api/stats').then(r => r.json());
+    renderStats();
+  } catch(e) {
+    toast('❌ Lance d\'abord node analyse_stats.js');
+  }
+}
+
+function renderStats() {
+  if (!statsData) return;
+
+  // Chart fréquences
+  const nums = Array.from({length:25},(_,i)=>i+1);
+  const freqs = nums.map(n => statsData.frequences[n]);
+  const freqColors = nums.map(n => {
+    const f = statsData.frequences[n];
+    if (f > 99) return '#ef4444';
+    if (f > 94) return '#f97316';
+    if (f < 80) return '#94a3b8';
+    return '#4f8cff';
+  });
+
+  if (freqChart) freqChart.destroy();
+  freqChart = new Chart(document.getElementById('freq-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: nums.map(n => String(n)),
+      datasets: [{
+        label: 'Apparitions',
+        data: freqs,
+        backgroundColor: freqColors,
+        borderRadius: 4,
+      }, {
+        label: 'Attendu (89.6)',
+        data: Array(25).fill(89.6),
+        type: 'line',
+        borderColor: '#1a2b4a',
+        borderWidth: 1.5,
+        borderDash: [4,3],
+        pointRadius: 0,
+        fill: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: false, min: 60, max: 115, grid: { color: '#f0f4f8' } },
+        x: { grid: { display: false } },
+      },
+    },
+  });
+
+  // Chart lettres
+  const lettres = ['S','A','M','E','D','I'];
+  const lFreqs  = lettres.map(l => statsData.lettres.frequences[l]);
+  if (lettreChart) lettreChart.destroy();
+  lettreChart = new Chart(document.getElementById('lettre-chart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: lettres,
+      datasets: [{ data: lFreqs, backgroundColor: ['#4f8cff','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4'], borderWidth: 2 }],
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right' } } },
+  });
+
+  // Chart zones
+  const zones = statsData.zones.moyenneObservee;
+  const expZ  = statsData.zones.attendu;
+  if (zoneChart) zoneChart.destroy();
+  zoneChart = new Chart(document.getElementById('zone-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Bas (1-8)','Milieu (9-17)','Haut (18-25)'],
+      datasets: [
+        { label:'Observé', data:[zones.bas,zones.mid,zones.haut], backgroundColor:['#4f8cff','#10b981','#f59e0b'], borderRadius:6 },
+        { label:'Attendu', data:[expZ.bas,expZ.mid,expZ.haut], backgroundColor:['rgba(79,140,255,.2)','rgba(16,185,129,.2)','rgba(245,158,11,.2)'], borderRadius:6 },
+      ],
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:false,min:3}} },
+  });
+
+  // Chart score
+  const sortedByScore = nums.slice().sort((a,b) => statsData.scores[b] - statsData.scores[a]);
+  if (scoreChart) scoreChart.destroy();
+  scoreChart = new Chart(document.getElementById('score-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: sortedByScore.map(n => String(n)),
+      datasets: [{
+        label: 'Score %',
+        data: sortedByScore.map(n => +(statsData.scores[n]*100).toFixed(1)),
+        backgroundColor: sortedByScore.map((n,i) => i < 10 ? '#1a2b4a' : '#cbd5e1'),
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ y:{ min:60, max:90, grid:{color:'#f0f4f8'} }, x:{grid:{display:false}} },
+    },
+  });
+
+  // Paires
+  const pairs = statsData.paires.top20;
+  document.getElementById('pairs-container').innerHTML = pairs.map(p => `
+    <div class="pair-card">
+      <div class="pair-nums">${p.paire.replace('-', ' • ')}</div>
+      <div class="pair-count">${p.count}×</div>
+      <div class="pair-delta">+${p.delta} vs attendu</div>
+    </div>
+  `).join('');
+
+  // Triplets
+  const trips = statsData.triplets.top20;
+  document.querySelector('#triplets-table tbody').innerHTML = trips.map((t,i) => `
+    <tr>
+      <td style="color:#8b9db0">${i+1}</td>
+      <td>${t.triplet.split('-').map(n => `<span class="num-ball">${n}</span>`).join('')}</td>
+      <td><strong>${t.count}×</strong></td>
+      <td style="color:${t.delta > 8 ? '#16a34a' : '#6b7a8d'}">+${t.delta}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── HISTORIQUE ───────────────────────────────────────────────
+async function loadHistorique() {
+  allHistory = await fetch('/api/historique').then(r => r.json());
+  renderTable(allHistory);
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('history-body');
+  tbody.innerHTML = rows.map(t => {
+    const nums = [t.n1,t.n2,t.n3,t.n4,t.n5,t.n6,t.n7,t.n8,t.n9,t.n10]
+      .map(n => `<span class="num-ball">${n}</span>`).join('');
+    const won = t.jackpot_remporte === '1';
+    return `<tr>
+      <td>${t.date}</td>
+      <td>${t.heure}</td>
+      <td>${nums}</td>
+      <td><span class="lettre-badge">${t.lettre}</span></td>
+      <td>${t.jackpot_enjeu_eur ? (parseInt(t.jackpot_enjeu_eur)/1000).toFixed(0)+'K €' : '—'}</td>
+      <td class="${won ? 'jackpot-won' : 'jackpot-lost'}">${won ? '✅ Remporté' : '—'}</td>
+      <td>${t.total_distribue_eur ? parseInt(t.total_distribue_eur).toLocaleString('fr-FR')+' €' : '—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('history-count').textContent = `${rows.length} tirage(s) affiché(s)`;
+}
+
+function filterTable() {
+  const q  = document.getElementById('search-input').value.toLowerCase();
+  const jf = document.getElementById('filter-jackpot').value;
+  const filtered = allHistory.filter(t => {
+    const text = Object.values(t).join(' ').toLowerCase();
+    const matchQ  = !q || text.includes(q);
+    const matchJp = !jf || t.jackpot_remporte === jf;
+    return matchQ && matchJp;
+  });
+  renderTable(filtered);
+}
+
+// ─── DONNÉES / SCRIPTS ────────────────────────────────────────
+function log(msg) {
+  const el = document.getElementById('log-output');
+  el.textContent += '\n' + new Date().toLocaleTimeString('fr-FR') + ' — ' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runScript(type) {
+  const btnId = {
+    'tirages': 'btn-scrape-tirages',
+    'gains':   'btn-scrape-gains',
+    'enrichir':'btn-enrichir',
+    'analyser':'btn-analyser',
+  }[type];
+  const btn = document.getElementById(btnId);
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = orig + ' <span class="loader"></span>';
+  log('Lancement : ' + type + '...');
+
+  try {
+    let endpoint = '/api/' + (type === 'tirages' ? 'scrape/tirages' : type === 'gains' ? 'scrape/gains' : type);
+    const res = await fetch(endpoint, { method:'POST' }).then(r => r.json());
+    if (res.error) throw new Error(res.error);
+    log('✅ ' + (res.message || 'Terminé'));
+    toast('✅ ' + (res.message || 'Terminé'));
+    if (type === 'analyser') { statsData = null; }
+    loadDashboard();
+  } catch(e) {
+    log('❌ Erreur : ' + e.message.substring(0, 200));
+    toast('❌ Erreur');
+  }
+  btn.disabled = false;
+  btn.innerHTML = orig;
+}
+
+// ─── STRATÉGIE ────────────────────────────────────────────────
+let stratData = null;
+
+async function loadStrategie() {
+  if (stratData) return renderStrategie(stratData);
+  try {
+    stratData = await fetch('/api/strategie').then(r => r.json());
+    renderStrategie(stratData);
+    loadSessions();
+  } catch(e) { toast('❌ Erreur stratégie'); }
+}
+
+function renderStrategie(d) {
+  // KPIs
+  const jp = d.jackpotNext;
+  const jouable = jp >= 500000;
+  document.getElementById('strat-kpis').innerHTML = `
+    <div class="card ${jp>=700000?'accent':jp>=500000?'green':''}">
+      <div class="card-label">Jackpot prochain estimé</div>
+      <div class="card-value">${(jp/1000).toFixed(0)}K €</div>
+      <div class="card-sub">${jp>=700000?'🏆 Jouer 5 grilles':jp>=600000?'✅ Jouer 3 grilles':jp>=500000?'✅ Jouer 2 grilles':jp>=300000?'⚠️ 1 grille max':'⛔ Ne pas jouer'}</div>
+    </div>
+    <div class="card"><div class="card-label">Opportunités 700K/mois</div><div class="card-value">${d.s19.frequenceMois}</div><div class="card-sub">~${Math.round(d.s19.frequenceMois*12)} par an</div></div>
+    <div class="card"><div class="card-label">Fréquence ≥500K</div><div class="card-value">${d.opps[500000].frequenceMois}×</div><div class="card-sub">par mois</div></div>
+    <div class="card green"><div class="card-label">P(gagner rang 6+) en 10 sessions</div><div class="card-value">${d.probas.s10.pRang6}%</div><div class="card-sub">avec 5 grilles à 700K</div></div>
+  `;
+
+  // Opportunités
+  const oppsBody = document.querySelector('#opps-table tbody');
+  oppsBody.innerHTML = Object.entries(d.opps).map(([seuil, o]) => `
+    <tr>
+      <td><strong>≥ ${(seuil/1000).toFixed(0)}K €</strong></td>
+      <td>${o.tiragesEligibles} (${o.pctTirages}%)</td>
+      <td>${o.samedisAvecOpportunite}/${32} (${o.pctSamedis}%)</td>
+      <td><span class="chip chip-blue">${o.frequenceMois}×/mois</span></td>
+    </tr>
+  `).join('');
+
+  // Stratégie 19h
+  const s = d.s19;
+  document.getElementById('strat-19h').innerHTML = `
+    <div><strong>Samedis analysés :</strong> ${s.samedisAnalyses}</div>
+    <div><strong>Fois où 19h atteint 700K :</strong> <span style="color:#16a34a;font-weight:700">${s.opportunites700k} (${s.pct}%)</span></div>
+    <div><strong>Fréquence :</strong> ~${s.frequenceMois} fois/mois → <strong>~${Math.round(s.frequenceMois*12)} fois/an</strong></div>
+    <div><strong>Jackpots remportés parmi eux :</strong> ${s.remportesParmi700k}/${s.opportunites700k}</div>
+    <div style="margin-top:8px;color:#6b7a8d;font-size:12px">
+      Sur 32 samedis, ${s.opportunites700k} fois le 19h avait un jackpot à 700K.<br>
+      Parmi ces ${s.opportunites700k} occasions, le jackpot a été remporté ${s.remportesParmi700k} fois.
+    </div>
+  `;
+
+  // Probabilités
+  const pBody = document.querySelector('#probas-table tbody');
+  pBody.innerHTML = Object.values(d.probas).map(p => `
+    <tr>
+      <td><strong>${p.nbSessions}</strong></td>
+      <td style="color:${p.pJackpot>0.01?'#16a34a':'#8b9db0'}">${p.pJackpot}%</td>
+      <td style="color:#16a34a;font-weight:600">${p.pRang6}%</td>
+      <td>${p.coutTotal} €</td>
+      <td>${p.esperanceTotale} €</td>
+    </tr>
+  `).join('');
+
+  const p100 = d.probas.s100;
+  document.getElementById('probas-insights').innerHTML = `
+    <div>✅ <strong>${p100.sessionsFor50pctRang6} sessions</strong> pour 50% de chance de rang 6+</div>
+    <div>⚠️ <strong>${p100.sessionsFor50pctJackpot.toLocaleString('fr-FR')}</strong> sessions pour 50% chance jackpot</div>
+    <div style="margin-top:8px;padding:10px;background:#eff6ff;border-radius:8px;font-size:12px">
+      <strong>Interprétation :</strong><br>
+      En jouant 5 grilles à chaque session 700K, vous avez ~99% de chance de gagner au moins un rang 6 (1-2€) sur 10 sessions.
+      Le jackpot reste très rare mais pas impossible — il a été remporté ${s.remportesParmi700k} fois dans notre historique.
+    </div>
+  `;
+
+  // Back-test
+  const bt = d.bt;
+  document.getElementById('bt-kpis').innerHTML = `
+    <div class="card"><div class="card-label">Sessions jouées</div><div class="card-value">${bt.sessionsJouees}</div></div>
+    <div class="card"><div class="card-label">Coût total</div><div class="card-value">${bt.coutTotal} €</div></div>
+    <div class="card ${bt.roi>0?'green':'orange'}"><div class="card-label">Gains simulés</div><div class="card-value">${bt.gainsTotal.toFixed(0)} €</div><div class="card-sub">ROI: ${bt.roi}%</div></div>
+    <div class="card"><div class="card-label">Perte nette simulée</div><div class="card-value">${bt.perte_nette.toFixed(0)} €</div></div>
+  `;
+
+  const rangsOrder = ['10','9L','9','8L','8','7L','7','6L','6','0L'];
+  document.getElementById('bt-rangs').innerHTML = `
+    <div style="font-weight:600;margin-bottom:8px">Rangs obtenus en simulation :</div>
+    ${rangsOrder.filter(r => bt.rangsObtenus[r]).map(r => `
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f4f8">
+        <span>Rang ${r}</span>
+        <span style="font-weight:600">${bt.rangsObtenus[r]} fois</span>
+      </div>
+    `).join('')}
+  `;
+
+  document.getElementById('bt-note').innerHTML = `
+    <strong>Note :</strong> Ce back-test simule la stratégie ≥ 500K sur ${bt.sessionsJouees} tirages historiques éligibles.
+    Le ROI positif (${bt.roi}%) inclut les remboursements rang 0L (lettre seule = 1€).
+    En pratique, le coût net est d'environ 75% de la mise après retour rang 0L.
+    <br><br>
+    <strong>Ce que ça veut dire :</strong> Vous perdez en moyenne ~${(bt.perte_nette/bt.sessionsJouees).toFixed(2)}€ par session (hors jackpot).
+  `;
+
+  // Budget annuel
+  const freqAn = Math.round(s.frequenceMois * 12);
+  document.getElementById('budget-annuel').innerHTML = `
+    <div style="background:#f0fdf4;border-radius:10px;padding:16px;border:1px solid #bbf7d0">
+      <div style="font-weight:700;color:#15803d;font-size:15px">Plan Conservateur</div>
+      <div style="font-size:28px;font-weight:800;color:#15803d;margin:8px 0">${freqAn * 2} €/an</div>
+      <div style="font-size:12px;color:#166534">2 € × ${freqAn} sessions 700K<br>Budget très raisonnable</div>
+    </div>
+    <div style="background:#eff6ff;border-radius:10px;padding:16px;border:1px solid #bfdbfe">
+      <div style="font-weight:700;color:#1d4ed8;font-size:15px">Plan Recommandé</div>
+      <div style="font-size:28px;font-weight:800;color:#1d4ed8;margin:8px 0">${freqAn * 5} €/an</div>
+      <div style="font-size:12px;color:#1e40af">5 € × ${freqAn} sessions 700K<br>5 grilles diversifiées</div>
+    </div>
+    <div style="background:#fffbeb;border-radius:10px;padding:16px;border:1px solid #fde68a">
+      <div style="font-weight:700;color:#b45309;font-size:15px">Plan Opportuniste</div>
+      <div style="font-size:28px;font-weight:800;color:#b45309;margin:8px 0">${Math.round(d.opps[500000].frequenceMois*12) * 3} €/an</div>
+      <div style="font-size:12px;color:#92400e">3 € × ${Math.round(d.opps[500000].frequenceMois*12)} sessions ≥500K<br>Joue plus souvent</div>
+    </div>
+  `;
+}
+
+// Journal sessions
+function showAddSession() {
+  const f = document.getElementById('add-session-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  if (f.style.display === 'block') {
+    // Pré-remplir avec aujourd'hui
+    document.getElementById('s-date').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+async function saveSession() {
+  const body = {
+    date:      document.getElementById('s-date').value,
+    heure:     document.getElementById('s-heure').value,
+    jackpot:   parseInt(document.getElementById('s-jackpot').value),
+    nb_grilles:parseInt(document.getElementById('s-grilles').value),
+    resultat: {
+      rang:  document.getElementById('s-rang').value || null,
+      gain:  parseFloat(document.getElementById('s-gain').value) || 0,
+    },
+  };
+  const res = await fetch('/api/strategie/session', {
+    method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+  }).then(r => r.json());
+  if (res.ok) {
+    document.getElementById('add-session-form').style.display = 'none';
+    document.getElementById('s-gain').value = 0;
+    document.getElementById('s-rang').value = '';
+    toast('✅ Session enregistrée !');
+    loadSessions();
+  }
+}
+
+async function loadSessions() {
+  const data = await fetch('/api/strategie/sessions').then(r => r.json());
+  const sessions = (data.sessions || []).slice().reverse();
+  const stats    = data.stats || {};
+
+  // Stats sessions
+  const sc = document.getElementById('sessions-stats');
+  if (sessions.length) {
+    sc.innerHTML = `
+      <div class="card"><div class="card-label">Sessions jouées</div><div class="card-value">${stats.nbSessions||0}</div></div>
+      <div class="card"><div class="card-label">Total misé</div><div class="card-value">${stats.totalCout||0} €</div></div>
+      <div class="card ${(stats.roi||0)>0?'green':'orange'}"><div class="card-label">Total gagné</div><div class="card-value">${(stats.totalGain||0).toFixed(2)} €</div><div class="card-sub">ROI: ${stats.roi||0}%</div></div>
+      <div class="card"><div class="card-label">Meilleur gain</div><div class="card-value">${stats.meilleurGain||0} €</div></div>
+    `;
+    sc.style.display = 'grid';
+  } else sc.style.display = 'none';
+
+  const tbody = document.getElementById('sessions-body');
+  const empty = document.getElementById('sessions-empty');
+  if (!sessions.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = sessions.map(s => {
+    const gain = s.resultat?.gain || 0;
+    const net  = gain - s.cout;
+    return `<tr>
+      <td>${s.date}</td>
+      <td>${s.heure}</td>
+      <td>${(s.jackpot/1000).toFixed(0)}K €</td>
+      <td>${s.nb_grilles}</td>
+      <td>${s.cout} €</td>
+      <td>${s.resultat?.rang ? `<span class="chip chip-blue">Rang ${s.resultat.rang}</span>` : '<span class="chip chip-gray">—</span>'}</td>
+      <td style="color:${gain>0?'#16a34a':'#8b9db0'}">${gain > 0 ? gain+' €' : '—'}</td>
+      <td style="color:${net>=0?'#16a34a':'#dc2626'};font-weight:600">${net>=0?'+':''}${net.toFixed(2)} €</td>
+      <td><span style="cursor:pointer;color:#dc2626;font-size:16px" onclick="deleteSession(${s.id})">✕</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteSession(id) {
+  await fetch(`/api/strategie/session/${id}`, { method:'DELETE' });
+  loadSessions();
+  toast('Session supprimée');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+updateJackpotPreview();
+loadDashboard();
+document.getElementById('jackpot-input').addEventListener('input', () => {
+  document.getElementById('jackpot-slider').value = document.getElementById('jackpot-input').value;
+  updateJackpotPreview();
+});
+</script>
+</body>
+</html>

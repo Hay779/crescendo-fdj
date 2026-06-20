@@ -1,0 +1,5 @@
+node_modules/
+debug_*.txt
+debug_gains_*.txt
+explore_*.html
+*.gif

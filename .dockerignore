@@ -1,0 +1,7 @@
+node_modules
+debug_*.txt
+debug_gains_*.txt
+explore_*.html
+explore_*.js
+*.gif
+.git

@@ -1,0 +1,23 @@
+{
+  "name": "crescendo-fdj-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard analytics Crescendo FDJ — statistiques, générateur de grilles, stratégie",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "scrape": "node scrape_v4.js",
+    "gains": "node scrape_gains_v2.js",
+    "enrichir": "node enrichir.js",
+    "analyse": "node analyse_stats.js"
+  },
+  "keywords": [],
+  "author": "LDCOMPLEX",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.0"
+  }
+}
