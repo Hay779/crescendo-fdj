@@ -334,10 +334,31 @@ tr:hover td{background:#f8fafc}
   </div>
 
   <div id="grilles-result" style="display:none">
-    <div class="box">
-      <div class="box-title"><span>📊</span> Résumé <span id="gen-summary" style="font-weight:400;font-size:12px;color:#8b9db0"></span></div>
-      <div class="cards" id="gen-kpis" style="margin-bottom:0"></div>
+
+    <!-- Noyau commun -->
+    <div class="box" style="margin-bottom:16px;border-left:4px solid #1a2b4a">
+      <div class="box-title"><span>🎯</span> Noyau commun — dans TOUTES les grilles</div>
+      <div style="font-size:12px;color:#6b7a8d;margin-bottom:10px">Ces numéros ont les meilleurs scores historiques. Si le tirage tombe dessus, toutes vos grilles scorent haut simultanément.</div>
+      <div id="noyau-display" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+      <div id="noyau-info" style="font-size:12px;color:#6b7a8d"></div>
     </div>
+
+    <!-- KPIs + table probabilités -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="box">
+        <div class="box-title"><span>📊</span> Résumé <span id="gen-summary" style="font-weight:400;font-size:12px;color:#8b9db0"></span></div>
+        <div class="cards" id="gen-kpis" style="margin-bottom:0"></div>
+      </div>
+      <div class="box">
+        <div class="box-title"><span>📈</span> Probabilités réelles par rang — cette session</div>
+        <table id="proba-rang-table" style="font-size:12px">
+          <thead><tr><th>Rang</th><th>Gain</th><th>P/session</th><th>Sessions pour 50%</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Grilles -->
     <div class="grilles-grid" id="grilles-container"></div>
   </div>
 
@@ -811,33 +832,74 @@ async function genererGrilles() {
 const BORDER_COLORS = ['#4f8cff','#10b981','#f59e0b','#8b5cf6','#ef4444'];
 
 function displayGrilles(data) {
-  const proba = (1 - (1-0.088)**data.grilles.length * 100).toFixed(0);
+  const n = data.grilles.length;
   document.getElementById('gen-summary').textContent =
-    `Jackpot ${(data.jackpot/1000).toFixed(0)}K€ — ${data.grilles.length} grille(s) — ${Math.round(data.grilles.length*data.jackpot/3268760*100)/100}€ espérance`;
+    `Jackpot ${(data.jackpot/1000).toFixed(0)}K€ · Stratégie Roue · ${n} grilles · ${n}€`;
+
+  // Noyau commun
+  const noyau = data.noyau || [];
+  document.getElementById('noyau-display').innerHTML = noyau.map(num =>
+    `<div class="num-ball" style="width:36px;height:36px;font-size:14px;background:#1a2b4a;color:#fff">${num}</div>`
+  ).join('');
+  document.getElementById('noyau-info').textContent =
+    `${noyau.length} numéros communs à toutes les grilles. ` +
+    `Pool total : ${(data.pool||[]).join(', ')}`;
 
   // KPIs
+  const pRang8 = ((1-(1-0.00145)**n)*100).toFixed(2);
+  const pRang7 = ((1-(1-0.01734)**n)*100).toFixed(1);
   document.getElementById('gen-kpis').innerHTML = `
-    <div class="card"><div class="card-label">Grilles</div><div class="card-value">${data.grilles.length}</div><div class="card-sub">à jouer</div></div>
-    <div class="card"><div class="card-label">Coût total</div><div class="card-value">${data.grilles.length} €</div><div class="card-sub">1€ par grille</div></div>
-    <div class="card"><div class="card-label">P(rang 6+)</div><div class="card-value">${((1-(0.912)**data.grilles.length)*100).toFixed(0)}%</div><div class="card-sub">au moins une grille</div></div>
-    <div class="card accent"><div class="card-label">Jackpot en jeu</div><div class="card-value">${(data.jackpot/1000).toFixed(0)}K</div><div class="card-sub">€</div></div>
+    <div class="card"><div class="card-label">Grilles à jouer</div><div class="card-value">${n}</div><div class="card-sub">${n}€ total</div></div>
+    <div class="card accent"><div class="card-label">Jackpot en jeu</div><div class="card-value">${(data.jackpot/1000).toFixed(0)}K€</div></div>
+    <div class="card green"><div class="card-label">P(Rang 7+) session</div><div class="card-value">${pRang7}%</div><div class="card-sub">≥7 numéros corrects</div></div>
+    <div class="card orange"><div class="card-label">P(Rang 8+) session</div><div class="card-value">${pRang8}%</div><div class="card-sub">≥8 numéros corrects</div></div>
   `;
 
-  // Grilles
-  document.getElementById('grilles-container').innerHTML = data.grilles.map((g, i) => `
-    <div class="grille-card" style="border-top-color:${BORDER_COLORS[i]}">
+  // Table probabilités par rang
+  const PROBA_BASE = {
+    '10 (Jackpot)': { p: 1/3268760,       gain: `${(data.jackpot/1000).toFixed(0)}K€` },
+    '9L (+lettre)': { p: 150/(3268760*6), gain: '~1 000€' },
+    '9':            { p: 150/3268760,     gain: '~500€'   },
+    '8L (+lettre)': { p: 4725/(3268760*6),gain: '~100€'   },
+    '8':            { p: 4725/3268760,    gain: '~50€'    },
+    '7L (+lettre)': { p: 56700/(3268760*6),gain:'~14€'    },
+    '7':            { p: 56700/3268760,   gain: '~7€'     },
+  };
+  const tbody = document.querySelector('#proba-rang-table tbody');
+  tbody.innerHTML = Object.entries(PROBA_BASE).map(([rang, {p, gain}]) => {
+    const pSess = (1-Math.pow(1-p,n))*100;
+    const s50 = pSess > 0 ? Math.ceil(Math.log(0.5)/Math.log(1-pSess/100)) : '∞';
+    const color = pSess > 1 ? '#16a34a' : pSess > 0.1 ? '#d97706' : '#6b7a8d';
+    return `<tr>
+      <td><strong>Rang ${rang}</strong></td>
+      <td>${gain}</td>
+      <td style="color:${color};font-weight:700">${pSess < 0.01 ? pSess.toFixed(4) : pSess < 1 ? pSess.toFixed(3) : pSess.toFixed(1)}%</td>
+      <td>${typeof s50 === 'number' ? s50.toLocaleString('fr-FR') : s50}</td>
+    </tr>`;
+  }).join('');
+
+  // Grilles avec noyau mis en évidence
+  document.getElementById('grilles-container').innerHTML = data.grilles.map((g, i) => {
+    const variable = g.variable || g.numeros.filter(n => !noyau.includes(n));
+    const balls = g.numeros.map(n => {
+      const isNoyau = noyau.includes(n);
+      const bg = isNoyau ? '#1a2b4a' : '#e8f0fe';
+      const col = isNoyau ? '#fff' : '#2563eb';
+      return `<div class="num-ball" style="background:${bg};color:${col};width:30px;height:30px;font-size:12px" title="${isNoyau?'Noyau':'Variable'}">${n}</div>`;
+    }).join('');
+    return `<div class="grille-card" style="border-top-color:${BORDER_COLORS[i%BORDER_COLORS.length]}">
       <div class="grille-title">Grille ${g.id}</div>
-      <div class="grille-nums">
-        ${g.numeros.map(n => `<div class="num-ball" style="background:#e8f0fe;color:#2563eb;width:32px;height:32px;font-size:13px">${n}</div>`).join('')}
-        <div class="lettre-badge" style="width:32px;height:32px;font-size:16px">${g.lettre}</div>
+      <div class="grille-nums">${balls}
+        <div class="lettre-badge" style="width:30px;height:30px;font-size:14px;background:#f0fdf4;color:#16a34a">${g.lettre}</div>
       </div>
-      <div class="grille-meta">
-        <span>Somme: ${g.sum}</span>
-        <span>Conséc: ${g.conseq}</span>
-        <span>Paires: ${g.paires}</span>
+      <div style="font-size:11px;color:#8b9db0;margin-top:6px">
+        Variable : <strong style="color:#2563eb">${variable.join('-')}</strong>
       </div>
-    </div>
-  `).join('');
+      <div class="grille-meta" style="margin-top:4px">
+        <span>Somme: ${g.sum}</span><span>Paires: ${g.paires}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── STATS ────────────────────────────────────────────────────

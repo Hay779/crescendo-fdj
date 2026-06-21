@@ -1,533 +1,310 @@
 /**
- * Crescendo FDJ — Générateur de grilles
+ * Crescendo FDJ — Générateur v3 : Stratégie Roue (Wheeling)
  *
- * Algorithme en 5 couches :
- *  1. Condition jackpot (ne génère que si jackpot ≥ seuil)
- *  2. Construction greedy scorée (fréquence + paires + tendance + gap)
- *  3. Contraintes de forme (zones, somme, consécutifs)
- *  4. Diversification multi-grilles (max 4 numéros communs entre grilles)
- *  5. Choix de lettre + recommandation de mise
+ * Principe : au lieu de 5 grilles DIFFÉRENTES qui se dispersent,
+ * on joue des grilles qui PARTAGENT un noyau de 8 numéros forts.
+ * Si le tirage tombe sur notre zone chaude → plusieurs grilles
+ * scorent 8-9-10 simultanément.
  *
- * Usage :
- *   node generateur_grilles.js                  → utilise le dernier tirage connu
- *   node generateur_grilles.js --jackpot 600000 → force un jackpot simulé
- *   node generateur_grilles.js --heure 17h      → pour l'heure indiquée
+ * Architecture :
+ *  - NOYAU (8 num) : les 8 meilleurs numéros absolus → dans TOUTES les grilles
+ *  - VARIABLE (8 num du pool) : 2-3 numéros qui tournent par grille
+ *  - POOL TOTAL = 14-16 meilleurs numéros de l'historique
+ *
+ * Probabilités réelles (calculées ci-dessous) :
+ *  Rang 8  (~50-100€) : ~0.145% par grille → 1.44% sur 10 grilles
+ *  Rang 9  (~500€)    : ~0.069% par grille
+ *  Rang 9L (~1000€)   : ~0.012% par grille
+ *  Rang 10 (jackpot)  : ~0.0000306% par grille
  */
 
 const fs = require('fs');
+const { execSync } = require('child_process');
 
-// ─── CONFIG ───────────────────────────────────────────────────
-const CFG = {
-  // Seuils jackpot
-  SEUIL_MIN:      300000,   // en dessous → ne pas jouer
-  SEUIL_FEW:      500000,   // 3 grilles
-  SEUIL_MAX:      700000,   // 5 grilles
-  // Contraintes grille
-  SUM_MIN:        108,
-  SUM_MAX:        158,
-  MAX_SHARED:     4,        // max numéros communs entre deux grilles
-  MAX_CONSEQ:     5,        // max paires consécutives par grille
-  // Pondération scoring
-  W_FREQ:         0.30,
-  W_RECENT:       0.30,
-  W_PAIR:         0.25,
-  W_GAP:          0.15,
-  // Bonus paires fortes
-  PAIR_STRONG_THR: 40,      // paire "forte" si > 40 co-occurrences
-  PAIR_WEAK_THR:   25,      // paire "faible" si < 25
-  PAIR_BONUS:      0.12,    // bonus score si paire forte avec un voisin déjà choisi
-  PAIR_PENALTY:   -0.08,    // pénalité si paire faible
-};
-
-const NUMS    = Array.from({length: 25}, (_, i) => i + 1);
+// ─── CONSTANTES ───────────────────────────────────────────────
+const NUMS    = Array.from({length:25},(_,i)=>i+1);
 const LETTRES = ['S','A','M','E','D','I'];
-const HOURS   = ['13h','14h','15h','16h','17h','18h','19h'];
+const C_25_10 = 3268760;
+
+// Probabilités théoriques par rang (par grille, hors lettre)
+const PROB_RANG = {
+  '10':  1       / C_25_10,            // jackpot
+  '9':   150     / C_25_10,            // 9 bons
+  '8':   4725    / C_25_10,            // 8 bons
+  '7':   56700   / C_25_10,            // 7 bons
+  '6':   286650  / C_25_10,            // 6 bons
+};
+// Avec lettre : diviser par 6 (probabilité d'avoir la bonne lettre)
+const PROB_RANG_L = Object.fromEntries(
+  Object.entries(PROB_RANG).map(([r,p]) => [r+'L', p/6])
+);
 
 // ─── CHARGEMENT ───────────────────────────────────────────────
-function loadCsv(path) {
-  const lines = fs.readFileSync(path, 'utf8').trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).filter(l => l.trim()).map(line => {
-    const vals = line.split(',');
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = vals[i]?.trim() ?? '');
-    return obj;
+function readCsv(f) {
+  if (!fs.existsSync(f)) return [];
+  const lines = fs.readFileSync(f,'utf8').trim().split('\n');
+  const h = lines[0].split(',').map(s=>s.trim());
+  return lines.slice(1).filter(l=>l.trim()).map(l=>{
+    const v=l.split(','); const o={};
+    h.forEach((k,i)=>o[k]=v[i]?.trim()??'');
+    return o;
   });
 }
 
-const stats    = JSON.parse(fs.readFileSync('crescendo_stats.json', 'utf8'));
-const tirages  = loadCsv('crescendo_historique_enrichi.csv');
+const stats    = JSON.parse(fs.readFileSync('crescendo_stats.json','utf8'));
+const tirages  = readCsv('crescendo_historique_enrichi.csv');
 
-// ─── JACKPOT COURANT ──────────────────────────────────────────
-function getJackpotCourant() {
-  // Lire depuis les args CLI
-  const argJ = process.argv.find(a => a.startsWith('--jackpot=') || a === '--jackpot');
-  if (argJ) {
-    const idx = process.argv.indexOf('--jackpot');
-    const val = argJ.includes('=') ? argJ.split('=')[1] : process.argv[idx+1];
-    return parseInt(val);
-  }
-  // Sinon déduire depuis le dernier tirage connu
-  const last = tirages[tirages.length - 1];
-  const lastJackpot  = parseInt(last.jackpot_enjeu_eur);
-  const lastRemporte = parseInt(last.jackpot_remporte);
-  // Le prochain jackpot = reset si remporté, sinon +100K
-  return lastRemporte ? 100000 : Math.min(lastJackpot + 100000, 700000);
-}
-
-function getHeureCible() {
-  const argH = process.argv.find(a => a.startsWith('--heure=') || a === '--heure');
-  if (argH) {
-    const idx = process.argv.indexOf('--heure');
-    return argH.includes('=') ? argH.split('=')[1] : process.argv[idx+1];
-  }
-  return null;  // toutes les heures
-}
-
-// ─── STRUCTURES DE SCORING ────────────────────────────────────
-
-// Index des paires depuis stats.json
-const PAIR_IDX = {};
-stats.paires.top20.forEach(p => { PAIR_IDX[p.paire] = p.count; });
-// Reconstruire l'index complet depuis le CSV (les stats ne contiennent que top20/bottom10)
-// → on recalcule depuis les tirages pour avoir toutes les paires
+// ─── INDEX DES PAIRES ─────────────────────────────────────────
 const ALL_PAIRS = {};
-NUMS.forEach(a => NUMS.forEach(b => {
-  if (b > a) ALL_PAIRS[`${a}-${b}`] = 0;
-}));
-tirages.forEach(row => {
-  const nums = [row.n1,row.n2,row.n3,row.n4,row.n5,row.n6,row.n7,row.n8,row.n9,row.n10]
-    .map(Number).sort((a,b) => a-b);
-  for (let i = 0; i < nums.length; i++)
-    for (let j = i+1; j < nums.length; j++)
-      ALL_PAIRS[`${nums[i]}-${nums[j]}`]++;
+NUMS.forEach(a=>NUMS.forEach(b=>{ if(b>a) ALL_PAIRS[`${a}-${b}`]=0; }));
+tirages.forEach(row=>{
+  const nums=[row.n1,row.n2,row.n3,row.n4,row.n5,row.n6,row.n7,row.n8,row.n9,row.n10]
+    .map(Number).sort((a,b)=>a-b);
+  for(let i=0;i<nums.length;i++)
+    for(let j=i+1;j<nums.length;j++)
+      ALL_PAIRS[`${nums[i]}-${nums[j]}`]=(ALL_PAIRS[`${nums[i]}-${nums[j]}`]||0)+1;
 });
+function pairCount(a,b){ return ALL_PAIRS[a<b?`${a}-${b}`:`${b}-${a}`]||0; }
 
-function getPairCount(a, b) {
-  const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-  return ALL_PAIRS[key] || 0;
-}
-
-// Score de base normalisé [0,1] pour chaque numéro
-const BASE_SCORES = stats.scores;
-const maxBaseScore = Math.max(...Object.values(BASE_SCORES));
-
-// ─── CALCUL DU SCORE MARGINAL ─────────────────────────────────
-/**
- * Score marginal d'ajouter `num` à une grille en cours de construction.
- * Prend en compte :
- *  - score de base (fréquence, récent, gap, paire-globale)
- *  - bonus/malus paires avec les numéros déjà dans la grille
- *  - contrainte de zone (si déjà trop de nums dans cette zone → pénalité)
- *  - contrainte de somme (si addition dépasse le plafond → pénalité)
- */
-function marginalScore(num, current, targetZones) {
-  let score = BASE_SCORES[num] / maxBaseScore;
-
-  // Bonus paires avec les numéros déjà sélectionnés
-  for (const n of current) {
-    const cnt = getPairCount(num, n);
-    if (cnt >= CFG.PAIR_STRONG_THR) score += CFG.PAIR_BONUS;
-    else if (cnt <= CFG.PAIR_WEAK_THR) score += CFG.PAIR_PENALTY;
-  }
-
-  // Zone
-  const zone = num <= 8 ? 'bas' : num <= 17 ? 'mid' : 'haut';
-  const currentZone = countZones(current);
-  const remaining   = 10 - current.length;
-  // Pénalité si cette zone est déjà sursaturée
-  if (zone === 'bas'  && currentZone.bas  >= targetZones.bas  + 1) score -= 0.15;
-  if (zone === 'mid'  && currentZone.mid  >= targetZones.mid  + 1) score -= 0.15;
-  if (zone === 'haut' && currentZone.haut >= targetZones.haut + 1) score -= 0.15;
-
-  // Pénalité si la somme s'emballe
-  const currentSum = current.reduce((s, n) => s + n, 0);
-  const projectedMax = currentSum + num + (remaining-1)*25;
-  const projectedMin = currentSum + num + (remaining-1)*1;
-  if (projectedMax < CFG.SUM_MIN || projectedMin > CFG.SUM_MAX) score -= 0.20;
-
-  return score;
-}
-
-function countZones(nums) {
-  return {
-    bas:  nums.filter(n => n <= 8).length,
-    mid:  nums.filter(n => n >= 9 && n <= 17).length,
-    haut: nums.filter(n => n >= 18).length,
-  };
-}
-
-// Compter les paires consécutives
-function countConsecutive(nums) {
-  const s = [...nums].sort((a,b) => a-b);
-  let cnt = 0;
-  for (let i = 0; i < s.length-1; i++) if (s[i+1]-s[i] === 1) cnt++;
-  return cnt;
-}
-
-// ─── CONSTRUCTION D'UNE GRILLE ────────────────────────────────
-/**
- * Construit une grille par sélection greedy.
- * @param {Set}    excluded    - numéros à exclure
- * @param {Array}  seeded      - numéros de départ imposés
- * @param {Object} zones       - répartition cible {bas, mid, haut}
- * @param {Object} usageCount  - nb de grilles existantes contenant chaque numéro
- */
-function buildGrid(excluded = new Set(), seeded = [], zones = {bas:3, mid:4, haut:3}, usageCount = {}, existingGrids = []) {
-  let current = seeded.filter(n => !excluded.has(n));
-  const pool  = NUMS.filter(n => !excluded.has(n) && !current.includes(n));
-
-  // Compléter jusqu'à 10 numéros
-  while (current.length < 10) {
-    let bestN     = null;
-    let bestScore = -Infinity;
-
-    for (const n of pool.filter(x => !current.includes(x))) {
-      // Bloquer dur si ce numéro pousserait l'overlap > MAX_SHARED avec une grille existante
-      const wouldViolate = existingGrids.some(g => {
-        const currentOvlp = overlap(current, g);
-        const nInG        = g.includes(n);
-        return nInG && currentOvlp >= CFG.MAX_SHARED;
-      });
-      if (wouldViolate) continue;
-
-      let s = marginalScore(n, current, zones);
-      // Pénaliser les numéros déjà présents dans des grilles existantes
-      const used = usageCount[n] || 0;
-      if (used === 1) s *= 0.70;
-      else if (used >= 2) s *= 0.45;
-      if (s > bestScore) { bestScore = s; bestN = n; }
-    }
-    if (!bestN) break;
-    current.push(bestN);
-  }
-
-  if (current.length < 10) return null;
-
-  // Post-traitement : ajuster la somme si hors plage
-  current = adjustSum(current, excluded);
-
-  return current.sort((a,b) => a-b);
-}
-
-/**
- * Ajuste la somme d'une grille par échange ciblé.
- */
-function adjustSum(grid, excluded) {
-  let g = [...grid];
-  let sum = g.reduce((s,n) => s+n, 0);
-  const pool = NUMS.filter(n => !g.includes(n) && !excluded.has(n));
-
-  // Trop élevée → remplacer le plus grand par un plus petit
-  let iter = 0;
-  while (sum > CFG.SUM_MAX && iter++ < 30) {
-    const biggest = g[g.length-1];
-    const smaller = pool
-      .filter(n => n < biggest && !g.includes(n))
-      .sort((a,b) => {
-        const sA = marginalScore(a, g.filter(x=>x!==biggest), {bas:3,mid:4,haut:3});
-        const sB = marginalScore(b, g.filter(x=>x!==biggest), {bas:3,mid:4,haut:3});
-        return sB - sA;
-      })[0];
-    if (!smaller) break;
-    g[g.indexOf(biggest)] = smaller;
-    g = g.sort((a,b) => a-b);
-    sum = g.reduce((s,n) => s+n, 0);
-  }
-
-  // Trop basse → remplacer le plus petit par un plus grand
-  iter = 0;
-  while (sum < CFG.SUM_MIN && iter++ < 30) {
-    const smallest = g[0];
-    const bigger = pool
-      .filter(n => n > smallest && !g.includes(n))
-      .sort((a,b) => {
-        const sA = marginalScore(a, g.filter(x=>x!==smallest), {bas:3,mid:4,haut:3});
-        const sB = marginalScore(b, g.filter(x=>x!==smallest), {bas:3,mid:4,haut:3});
-        return sB - sA;
-      })[0];
-    if (!bigger) break;
-    g[g.indexOf(smallest)] = bigger;
-    g = g.sort((a,b) => a-b);
-    sum = g.reduce((s,n) => s+n, 0);
-  }
-
-  return g;
-}
-
-// ─── SCORE D'UNE GRILLE COMPLÈTE ──────────────────────────────
+// ─── SCORE D'UNE GRILLE ───────────────────────────────────────
 function scoreGrid(grid) {
-  // Score individuel
-  const indiv = grid.reduce((s, n) => s + BASE_SCORES[n], 0);
-
-  // Score paires
-  let pairScore = 0;
-  for (let i = 0; i < grid.length; i++)
-    for (let j = i+1; j < grid.length; j++)
-      pairScore += getPairCount(grid[i], grid[j]);
-
-  // Normalisation
-  return {
-    indiv:    +(indiv / 10).toFixed(4),
-    paires:   pairScore,
-    zones:    countZones(grid),
-    sum:      grid.reduce((s,n) => s+n, 0),
-    conseq:   countConsecutive(grid),
+  const indiv = grid.reduce((s,n)=>s+(stats.scores[n]||0),0);
+  let pairs = 0;
+  for(let i=0;i<grid.length;i++)
+    for(let j=i+1;j<grid.length;j++)
+      pairs += pairCount(grid[i],grid[j]);
+  return { indiv: +(indiv/10).toFixed(4), paires: pairs,
+    sum: grid.reduce((s,n)=>s+n,0),
+    zones: { bas:grid.filter(n=>n<=8).length, mid:grid.filter(n=>n>=9&&n<=17).length, haut:grid.filter(n=>n>=18).length }
   };
 }
 
-// ─── OVERLAP ──────────────────────────────────────────────────
-function overlap(g1, g2) {
-  return g1.filter(n => g2.includes(n)).length;
+// ─── COMBINAISONS ─────────────────────────────────────────────
+function getCombos(arr,k){
+  const res=[];
+  function h(s,c){
+    if(c.length===k){res.push([...c]);return;}
+    for(let i=s;i<arr.length;i++){c.push(arr[i]);h(i+1,c);c.pop();}
+  }
+  h(0,[]);
+  return res;
 }
 
-// ─── GÉNÉRATION MULTI-GRILLES ─────────────────────────────────
-function generateGrids(nbGrids) {
-  const grids   = [];
-  const topTriplet = stats.triplets.top20[0].triplet.split('-').map(Number);
+// ─── PROBABILITÉS CUMULÉES ────────────────────────────────────
+function probaAtLeastOne(pOneGrid, nGrids) {
+  return 1 - Math.pow(1 - pOneGrid, nGrids);
+}
 
-  // Grille 1 : base pure avec le meilleur triplet
-  const g1 = buildGrid(new Set(), topTriplet, {bas:3, mid:4, haut:3});
-  if (g1) grids.push(g1);
-
-  // Grilles 2+ : diversification progressive
-  const zoneVariants = [
-    {bas:3, mid:3, haut:4},   // plus orientée haute zone
-    {bas:4, mid:3, haut:3},   // plus orientée basse zone
-    {bas:3, mid:4, haut:3},   // équilibrée
-    {bas:2, mid:5, haut:3},   // focus milieu
-    {bas:4, mid:4, haut:2},   // basse + milieu
-    {bas:2, mid:4, haut:4},   // milieu + haute
+function buildProbaTable(nGrids) {
+  const rows = [];
+  const rangs = [
+    { label: 'Rang 10 (Jackpot)', p: PROB_RANG['10'],   gain: '100K→700K€' },
+    { label: 'Rang 9L (+lettre)', p: PROB_RANG_L['9L'],  gain: '~1 000€'   },
+    { label: 'Rang 9',            p: PROB_RANG['9'],    gain: '~500€'      },
+    { label: 'Rang 8L (+lettre)', p: PROB_RANG_L['8L'],  gain: '~100€'     },
+    { label: 'Rang 8',            p: PROB_RANG['8'],    gain: '~50€'       },
+    { label: 'Rang 7L (+lettre)', p: PROB_RANG_L['7L'],  gain: '~14€'      },
+    { label: 'Rang 7',            p: PROB_RANG['7'],    gain: '~7€'        },
   ];
+  for(const r of rangs) {
+    const pSession = probaAtLeastOne(r.p, nGrids);
+    const sessionsFor50pct = Math.ceil(Math.log(0.5) / Math.log(1 - pSession));
+    rows.push({ ...r, pSession: +(pSession*100).toFixed(4), sessionsFor50pct });
+  }
+  return rows;
+}
 
-  // Différents triplets de départ pour la diversification
-  const altTriplets = stats.triplets.top20
-    .slice(1, 10)
-    .map(t => t.triplet.split('-').map(Number));
+// ─── STRATÉGIE ROUE (WHEELING) ────────────────────────────────
+/**
+ * Construit N grilles avec un NOYAU COMMUN de numNoyau numéros
+ * et 10-numNoyau numéros variables depuis le pool.
+ *
+ * Toutes les grilles partagent les numNoyau numéros du noyau.
+ * Les positions variables tournent pour maximiser la couverture.
+ */
+function buildWheeledGrids(nbGrids, jackpot) {
+  // Taille du pool selon le jackpot et nombre de grilles
+  const poolSize  = Math.min(10 + Math.ceil(nbGrids * 0.6), 18);
+  const noyauSize = Math.min(7 + Math.floor(nbGrids / 5), 9); // 7-9 numéros noyau
 
-  let attempts = 0;
-  while (grids.length < nbGrids && attempts < 800) {
-    attempts++;
-    const idx   = grids.length - 1;
-    const zones = zoneVariants[idx % zoneVariants.length];
+  // Trier tous les numéros par score composite
+  const sorted = [...NUMS].sort((a,b) => (stats.scores[b]||0) - (stats.scores[a]||0));
 
-    // Compter les usages de chaque numéro dans les grilles déjà générées
-    const usageCount = {};
-    grids.forEach(g => g.forEach(n => usageCount[n] = (usageCount[n] || 0) + 1));
+  const pool   = sorted.slice(0, poolSize);
+  const noyau  = pool.slice(0, noyauSize);
+  const variable = pool.slice(noyauSize);
+  const nVar   = 10 - noyauSize; // numéros variables par grille
 
-    // Seed : prendre en priorité les numéros NON présents dans les grilles existantes
-    const freeNums = NUMS.filter(n => !usageCount[n]);
-    // Si assez de numéros libres, démarrer avec 2-3 d'entre eux + 1 du top altTriplets
-    let seedTrip;
-    if (freeNums.length >= 3) {
-      // Trier les libres par score décroissant et prendre les 3 meilleurs
-      seedTrip = [...freeNums]
-        .sort((a, b) => BASE_SCORES[b] - BASE_SCORES[a])
-        .slice(0, 3);
-    } else {
-      // Plus de numéros libres : utiliser des numéros faiblement utilisés
-      seedTrip = NUMS
-        .filter(n => (usageCount[n] || 0) <= 1)
-        .sort((a, b) => BASE_SCORES[b] - BASE_SCORES[a])
-        .slice(0, 3);
+  // Générer toutes les combinaisons de nVar numéros depuis le pool variable
+  const combos = getCombos(variable, nVar);
+
+  // Scorer chaque combinaison (noyau + combo_variable)
+  const scored = combos.map(extra => {
+    const grid = [...noyau, ...extra].sort((a,b)=>a-b);
+    const sc = scoreGrid(grid);
+    // Score = paires fortes + somme dans plage cible
+    const sumPenalty = (sc.sum < 105 || sc.sum > 160) ? -0.1 : 0;
+    return { grid, score: sc.paires * 0.001 + sc.indiv + sumPenalty };
+  });
+
+  scored.sort((a,b)=>b.score-a.score);
+
+  // Prendre les meilleures grilles avec une diversification partielle
+  const grids = [];
+  const seen  = new Set();
+
+  for(const c of scored) {
+    if(grids.length >= nbGrids) break;
+    const key = c.grid.join('-');
+    if(seen.has(key)) continue;
+
+    // Vérifier que pas identique à une déjà choisie
+    const tooSimilar = grids.some(g => {
+      const common = g.filter(n=>c.grid.includes(n)).length;
+      return common === 10; // rejeter seulement si identique
+    });
+    if(!tooSimilar) {
+      grids.push(c.grid);
+      seen.add(key);
     }
-
-    // Exclure uniquement les numéros présents dans TOUTES les grilles
-    const excluded = new Set(
-      Object.entries(usageCount)
-        .filter(([_, c]) => c >= grids.length)
-        .map(([n]) => parseInt(n))
-    );
-
-    const candidate = buildGrid(excluded, seedTrip, zones, usageCount, grids);
-    if (!candidate) continue;
-
-    // Contrainte diversité
-    const maxOvlp = Math.max(...grids.map(g => overlap(g, candidate)));
-    if (maxOvlp > CFG.MAX_SHARED) continue;
-
-    // Contraintes de forme
-    const sc = scoreGrid(candidate);
-    if (sc.sum < CFG.SUM_MIN || sc.sum > CFG.SUM_MAX) continue;
-    if (sc.conseq > CFG.MAX_CONSEQ) continue;
-
-    grids.push(candidate);
   }
 
-  return grids;
+  // Si pas assez de grilles (pool trop petit), compléter sans contrainte
+  for(const c of scored) {
+    if(grids.length >= nbGrids) break;
+    const key = c.grid.join('-');
+    if(!seen.has(key)) {
+      grids.push(c.grid);
+      seen.add(key);
+    }
+  }
+
+  return { grids, noyau, pool, poolSize, noyauSize };
 }
 
 // ─── LETTRE RECOMMANDÉE ───────────────────────────────────────
-function getLetterRecommendation(nbGrids) {
+function getBestLetter() {
   const recent = stats.lettres.recentes;
-  const sorted = [...LETTRES].sort((a, b) => recent[a] - recent[b]);
-  // Attribuer les lettres les moins fréquentes aux premières grilles
-  return sorted.slice(0, nbGrids);
+  return [...LETTRES].sort((a,b)=>recent[a]-recent[b])[0];
+}
+
+// ─── JACKPOT & NB GRILLES ─────────────────────────────────────
+function getJackpot() {
+  const argJ = process.argv.find(a=>a.startsWith('--jackpot='));
+  if(argJ) return parseInt(argJ.split('=')[1]);
+  const last = tirages[tirages.length-1];
+  return last
+    ? (parseInt(last.jackpot_remporte)===1 ? 100000 : Math.min(parseInt(last.jackpot_enjeu_eur)+100000,700000))
+    : 100000;
+}
+
+function getNbGrids(jackpot, argNb) {
+  if(argNb) return parseInt(argNb);
+  if(jackpot >= 700000) return 10;
+  if(jackpot >= 600000) return 7;
+  if(jackpot >= 500000) return 5;
+  if(jackpot >= 300000) return 3;
+  return 0;
 }
 
 // ─── AFFICHAGE ────────────────────────────────────────────────
-const line = (c='─', n=65) => c.repeat(n);
+const line = (c='─',n=70)=>c.repeat(n);
 
-function displayGrids(jackpot, heureCible, nbGrids, grids, letters) {
-  console.log('\n' + line('═'));
-  console.log('  CRESCENDO FDJ — GÉNÉRATEUR DE GRILLES');
+function main() {
+  const jackpot = getJackpot();
+  const argNb   = process.argv.find(a=>a.startsWith('--grilles='))?.split('=')[1];
+  const nbGrids = getNbGrids(jackpot, argNb);
+
+  console.log('\n'+line('═'));
+  console.log('  CRESCENDO FDJ — GÉNÉRATEUR v3 · STRATÉGIE ROUE');
   console.log(line('═'));
+  console.log(`\n  Jackpot : ${jackpot.toLocaleString('fr-FR')} €`);
 
-  // ── Condition jackpot ──
-  const bar = (j) => {
-    const pct = (j - 100000) / 600000;
-    const filled = Math.round(pct * 20);
-    return '▓'.repeat(filled).padEnd(20, '░');
-  };
-
-  console.log(`\n  Jackpot estimé   : ${(jackpot/1000).toFixed(0)} 000 €  ${bar(jackpot)}`);
-
-  if (jackpot < CFG.SEUIL_MIN) {
-    console.log(`\n  ⛔ Jackpot < ${CFG.SEUIL_MIN/1000}K€ — Ne pas jouer ce tirage.`);
-    console.log(`     Attendre un jackpot ≥ ${CFG.SEUIL_MIN/1000}K€ pour optimiser l'espérance de gain.\n`);
+  if(nbGrids === 0) {
+    console.log('\n  ⛔ Jackpot trop bas (< 300K€). Attendre ≥ 300K€.\n');
+    fs.writeFileSync('crescendo_grilles.json', JSON.stringify({ jackpot, nbGrids:0, grilles:[] },null,2));
     return;
   }
 
-  const reco = jackpot >= CFG.SEUIL_MAX
-    ? `✅ Jackpot MAXIMUM (${jackpot/1000}K€) — Jouer ${nbGrids} grilles`
-    : `✅ Jackpot élevé (${jackpot/1000}K€) — Jouer ${nbGrids} grilles`;
-  console.log(`\n  ${reco}`);
-  if (heureCible) console.log(`  Heure cible      : ${heureCible}`);
+  // ── Génération ────────────────────────────────────────────
+  const { grids, noyau, pool, poolSize, noyauSize } = buildWheeledGrids(nbGrids, jackpot);
+  const lettre = getBestLetter();
 
-  console.log(`\n  Mise totale recommandée : ${nbGrids} €`);
-  console.log(`  Probabilité jackpot/grille : 1 / 3 268 760 (0.0000306%)`);
-  console.log(`  Probabilité rang 6+ /grille : ~8.8%  (au moins une grille : ${((1-(1-0.088)**nbGrids)*100).toFixed(0)}%)`);
+  // ── Table de probabilités ──────────────────────────────────
+  const probaTable = buildProbaTable(nbGrids);
 
-  // ── Grilles ──
-  console.log('\n' + line('─'));
-  console.log('  GRILLES RECOMMANDÉES');
+  // ── Affichage ─────────────────────────────────────────────
+  console.log(`  Stratégie : ${nbGrids} grilles · Noyau commun : ${noyauSize} numéros · Pool : ${poolSize} numéros`);
+  console.log(`  Lettre recommandée : ${lettre} (moins vue récemment)\n`);
+
   console.log(line('─'));
+  console.log('  NOYAU COMMUN (présent dans TOUTES les grilles)');
+  console.log(line('─'));
+  console.log(`  [${noyau.join(' - ')}]`);
+  console.log(`  Ces ${noyauSize} numéros ont les meilleurs scores historiques.`);
+  console.log(`  Si ${noyauSize} de vos numéros sortent, TOUTES vos grilles ont au moins ${noyauSize}/10.\n`);
 
-  grids.forEach((grid, i) => {
-    const sc  = scoreGrid(grid);
-    const ltr = letters[i] || letters[letters.length - 1];
-    const zones = sc.zones;
-    const zoneStr = `Bas=${zones.bas} Mid=${zones.mid} Haut=${zones.haut}`;
-    const sumFlag = sc.sum >= CFG.SUM_MIN && sc.sum <= CFG.SUM_MAX ? '✓' : '⚠';
-
-    console.log(`\n  ┌─ GRILLE ${i+1} ─────────────────────────────────────────┐`);
-    console.log(`  │  Numéros : ${grid.map(n => String(n).padStart(2)).join(' - ')}  │`);
-    console.log(`  │  Lettre  : ${ltr}                                           │`);
-    console.log(`  │  Zones   : ${zoneStr.padEnd(28)}  │`);
-    console.log(`  │  Somme   : ${sc.sum} ${sumFlag}  │  Consécutifs : ${sc.conseq}  │  Score paires : ${sc.paires}  │`);
-    console.log(`  └───────────────────────────────────────────────────────────┘`);
-
-    // Justification des numéros choisis
-    console.log(`  Pourquoi ces numéros :`);
-    grid.forEach(n => {
-      const f  = stats.frequences[n];
-      const r  = stats.freqRecente[n];
-      const g  = stats.gaps[n];
-      const sc = (stats.scores[n] * 100).toFixed(0);
-      const flag = f > 95 ? '🔥' : f < 80 ? '❄' : r > 10 ? '📈' : '';
-      console.log(`    ${String(n).padStart(2)}: score=${sc}%  freq=${f}  récent=${r}  gap=${g} ${flag}`);
-    });
+  console.log(line('─'));
+  console.log('  GRILLES GÉNÉRÉES');
+  console.log(line('─'));
+  grids.forEach((g,i) => {
+    const sc = scoreGrid(g);
+    const variable = g.filter(n=>!noyau.includes(n));
+    console.log(`\n  Grille ${i+1}: [${g.join('-')}] + ${lettre}`);
+    console.log(`    Noyau : ${noyau.join('-')}`);
+    console.log(`    Variable : ${variable.join('-')}`);
+    console.log(`    Somme=${sc.sum} | Paires=${sc.paires} | Zones: Bas=${sc.zones.bas} Mid=${sc.zones.mid} Haut=${sc.zones.haut}`);
   });
 
-  // ── Overlap entre grilles ──
-  if (grids.length > 1) {
-    console.log('\n' + line('─'));
-    console.log('  DIVERSIFICATION — Numéros communs entre grilles');
-    console.log(line('─'));
-    for (let i = 0; i < grids.length; i++) {
-      for (let j = i+1; j < grids.length; j++) {
-        const common = grids[i].filter(n => grids[j].includes(n));
-        console.log(`  G${i+1} ∩ G${j+1} : ${common.length} communs [${common.join(', ')}]`);
-      }
+  // ── Probabilités ──────────────────────────────────────────
+  console.log('\n'+line('═'));
+  console.log(`  PROBABILITÉS RÉELLES — ${nbGrids} grilles par session`);
+  console.log(line('═'));
+  console.log(`\n  ${'Rang'.padEnd(20)} ${'P/session'.padEnd(14)} ${'Gain'.padEnd(12)} Sessions pour 50%`);
+  console.log('  '+'-'.repeat(65));
+  probaTable.forEach(r=>{
+    const pStr = r.pSession < 0.01 ? `${(r.pSession).toFixed(4)}%` : `${r.pSession.toFixed(2)}%`;
+    const s50  = r.sessionsFor50pct > 99999 ? '> 99 999' : r.sessionsFor50pct.toLocaleString('fr-FR');
+    console.log(`  ${r.label.padEnd(20)} ${pStr.padEnd(14)} ${r.gain.padEnd(12)} ${s50}`);
+  });
+
+  // ── Overlap ───────────────────────────────────────────────
+  console.log('\n'+line('─'));
+  console.log('  CHEVAUCHEMENT ENTRE GRILLES (volontaire — stratégie roue)');
+  console.log(line('─'));
+  for(let i=0;i<grids.length;i++)
+    for(let j=i+1;j<grids.length;j++){
+      const common = grids[i].filter(n=>grids[j].includes(n));
+      console.log(`  G${i+1} ∩ G${j+1} : ${common.length}/10 communs → si ces ${common.length} numéros sortent, les 2 grilles scorent bien`);
     }
-  }
 
-  // ── Lettre ──
-  console.log('\n' + line('─'));
-  console.log('  LETTRES — Analyse récente (20 derniers tirages)');
-  console.log(line('─'));
-  const recent = stats.lettres.recentes;
-  const exp20  = 20/6;
-  LETTRES.sort((a,b) => recent[a] - recent[b]).forEach((l, rank) => {
-    const diff = recent[l] - exp20;
-    const sign = diff >= 0 ? '+' : '';
-    const arrow = rank === 0 ? ' ← RECOMMANDÉE' : rank <= 1 ? ' ← Possible' : '';
-    console.log(`  ${l}: ${recent[l]}x (${sign}${diff.toFixed(1)})${arrow}`);
-  });
-
-  // ── Triplets de référence dans les grilles ──
-  console.log('\n' + line('─'));
-  console.log('  TRIPLETS FORTS PRÉSENTS DANS VOS GRILLES');
-  console.log(line('─'));
-  grids.forEach((grid, i) => {
-    const found = [];
-    stats.triplets.top20.slice(0, 10).forEach(t => {
-      const nums = t.triplet.split('-').map(Number);
-      if (nums.every(n => grid.includes(n))) {
-        found.push(`(${t.triplet}) ${t.count}x`);
-      }
-    });
-    if (found.length > 0) {
-      console.log(`  G${i+1}: ${found.join('  |  ')}`);
-    } else {
-      console.log(`  G${i+1}: aucun top-10 triplet (grille diversifiée)`);
-    }
-  });
-
-  // ── Résumé ──
-  console.log('\n' + line('═'));
-  console.log('  RÉSUMÉ DE LA MISE');
+  // ── Budget ────────────────────────────────────────────────
+  console.log('\n'+line('═'));
+  console.log('  RÉSUMÉ');
   console.log(line('═'));
   console.log(`  Jackpot en jeu   : ${jackpot.toLocaleString('fr-FR')} €`);
-  console.log(`  Nombre de grilles: ${grids.length}`);
-  console.log(`  Coût total       : ${grids.length} €`);
-  console.log(`  Espérance/grille : ~${(jackpot/3268760).toFixed(3)} €  (pour 1 € misé)`);
-  console.log(`  Espérance totale : ~${(grids.length * jackpot/3268760).toFixed(3)} €`);
-  console.log();
-  grids.forEach((g, i) => {
-    console.log(`  ▶ Grille ${i+1}: ${g.join('-')} + ${letters[i]}`);
-  });
-  console.log();
-}
+  console.log(`  Grilles à jouer  : ${nbGrids}`);
+  console.log(`  Coût par session : ${nbGrids} €`);
+  console.log(`  Lettre           : ${lettre} (sur chaque grille)`);
+  console.log(`\n  ▶ GRILLES À JOUER :`);
+  grids.forEach((g,i)=>console.log(`    G${i+1}: [${g.join('-')}] + ${lettre}`));
 
-// ─── MAIN ─────────────────────────────────────────────────────
-function main() {
-  const jackpot    = getJackpotCourant();
-  const heureCible = getHeureCible();
-
-  // Nombre de grilles selon le jackpot
-  let nbGrids;
-  if (jackpot < CFG.SEUIL_MIN)        nbGrids = 0;
-  else if (jackpot < 400000)           nbGrids = 1;
-  else if (jackpot < CFG.SEUIL_FEW)   nbGrids = 2;
-  else if (jackpot < CFG.SEUIL_MAX)   nbGrids = 3;
-  else                                 nbGrids = 5;
-
-  if (nbGrids === 0) {
-    displayGrids(jackpot, heureCible, 0, [], []);
-    return;
-  }
-
-  const grids   = generateGrids(nbGrids);
-  const letters = getLetterRecommendation(grids.length);
-
-  displayGrids(jackpot, heureCible, grids.length, grids, letters);
-
-  // Sauvegarder la recommandation
+  // ── Sauvegarde ────────────────────────────────────────────
   const output = {
     generatedAt: new Date().toISOString(),
-    jackpot,
-    heureCible,
-    nbGrids: grids.length,
-    grilles: grids.map((g, i) => ({
-      id: i + 1,
-      numeros: g,
-      lettre: letters[i],
-      ...scoreGrid(g),
+    jackpot, nbGrids,
+    strategie: 'roue',
+    noyau, pool: pool.slice(0, poolSize),
+    lettre,
+    grilles: grids.map((g,i)=>({
+      id:i+1, numeros:g, lettre,
+      variable: g.filter(n=>!noyau.includes(n)),
+      ...scoreGrid(g)
     })),
+    probabilites: probaTable,
   };
-  fs.writeFileSync('crescendo_grilles.json', JSON.stringify(output, null, 2), 'utf8');
-  console.log('✅ crescendo_grilles.json sauvegardé\n');
+  fs.writeFileSync('crescendo_grilles.json', JSON.stringify(output,null,2),'utf8');
+  console.log(`\n✅ crescendo_grilles.json sauvegardé\n`);
 }
 
 main();
