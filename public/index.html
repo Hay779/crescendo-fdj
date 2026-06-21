@@ -158,6 +158,9 @@ tr:hover td{background:#f8fafc}
     <div class="nav-item" onclick="showPage('historique')">
       <span class="icon">📋</span><span>Historique</span>
     </div>
+    <div class="nav-item" onclick="showPage('combos')">
+      <span class="icon">🔢</span><span>Combinaisons</span>
+    </div>
     <div class="nav-item" onclick="showPage('strategie')">
       <span class="icon">🧠</span><span>Stratégie</span>
     </div>
@@ -344,6 +347,69 @@ tr:hover td{background:#f8fafc}
       </table>
     </div>
     <div id="history-count" style="margin-top:8px;font-size:12px;color:#8b9db0"></div>
+  </div>
+</div>
+
+<!-- ══════════════ COMBINAISONS ══════════════ -->
+<div id="page-combos" class="page">
+  <div class="page-title">Combinaisons <span style="font-size:13px;color:#8b9db0;font-weight:400">— co-occurrences 2→8 numéros + séquences consécutives</span></div>
+
+  <!-- Analyse du 20/06 vs grille proposée -->
+  <div class="box" style="margin-bottom:16px;border-left:4px solid #4f8cff">
+    <div class="box-title"><span>🎯</span> Analyse grille proposée vs résultats du 20/06/2026</div>
+    <div style="font-size:12px;color:#6b7a8d;margin-bottom:12px">Grille : <strong>[1-5-7-15-16-18-19-20-23-24] + E</strong></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Heure</th><th>Numéros tirés</th><th>Lettre</th><th>Numéros communs</th><th>Score</th><th>Rang obtenu</th></tr></thead>
+        <tbody>
+          <tr><td>13h</td><td><span class="num-ball">1</span><span class="num-ball">2</span><span class="num-ball">3</span><span class="num-ball">6</span><span class="num-ball">7</span><span class="num-ball">8</span><span class="num-ball">9</span><span class="num-ball">15</span><span class="num-ball">17</span><span class="num-ball">21</span></td><td><span class="lettre-badge">A</span></td><td><span class="chip chip-blue">1 · 7 · 15</span></td><td style="color:#8b9db0">3/10</td><td>—</td></tr>
+          <tr><td>14h</td><td><span class="num-ball">3</span><span class="num-ball">11</span><span class="num-ball">13</span><span class="num-ball">15</span><span class="num-ball">18</span><span class="num-ball">19</span><span class="num-ball">20</span><span class="num-ball">23</span><span class="num-ball">24</span><span class="num-ball">25</span></td><td><span class="lettre-badge">D</span></td><td><span class="chip chip-blue">15 · 18 · 19 · 20 · 23 · 24</span></td><td style="color:#16a34a;font-weight:700">6/10</td><td>Rang 6 (~1€)</td></tr>
+          <tr><td>15h</td><td><span class="num-ball">5</span><span class="num-ball">7</span><span class="num-ball">9</span><span class="num-ball">12</span><span class="num-ball">16</span><span class="num-ball">17</span><span class="num-ball">19</span><span class="num-ball">20</span><span class="num-ball">21</span><span class="num-ball">23</span></td><td><span class="lettre-badge">A</span></td><td><span class="chip chip-blue">5 · 7 · 16 · 19 · 20 · 23</span></td><td style="color:#16a34a;font-weight:700">6/10</td><td>Rang 6 (~1€)</td></tr>
+          <tr><td>16h</td><td><span class="num-ball">1</span><span class="num-ball">2</span><span class="num-ball">7</span><span class="num-ball">9</span><span class="num-ball">15</span><span class="num-ball">20</span><span class="num-ball">21</span><span class="num-ball">22</span><span class="num-ball">23</span><span class="num-ball">25</span></td><td><span class="lettre-badge">A</span></td><td><span class="chip chip-blue">1 · 7 · 15 · 20 · 23</span></td><td style="color:#8b9db0">5/10</td><td>—</td></tr>
+          <tr><td>17h</td><td><span class="num-ball">6</span><span class="num-ball">7</span><span class="num-ball">8</span><span class="num-ball">15</span><span class="num-ball">16</span><span class="num-ball">17</span><span class="num-ball">18</span><span class="num-ball">21</span><span class="num-ball">22</span><span class="num-ball">23</span></td><td><span class="lettre-badge">M</span></td><td><span class="chip chip-blue">7 · 15 · 16 · 18 · 23</span></td><td style="color:#8b9db0">5/10</td><td>—</td></tr>
+          <tr><td>18h</td><td><span class="num-ball">8</span><span class="num-ball">12</span><span class="num-ball">14</span><span class="num-ball">15</span><span class="num-ball">17</span><span class="num-ball">20</span><span class="num-ball">21</span><span class="num-ball">22</span><span class="num-ball">24</span><span class="num-ball">25</span></td><td><span class="lettre-badge" style="background:#dcfce7;color:#16a34a">E</span></td><td><span class="chip chip-blue">15 · 20 · 24</span></td><td style="color:#8b9db0">3/10</td><td style="color:#16a34a">Rang 0L — lettre E ✓ (1€)</td></tr>
+          <tr><td>19h</td><td><span class="num-ball">1</span><span class="num-ball">2</span><span class="num-ball">3</span><span class="num-ball">7</span><span class="num-ball">11</span><span class="num-ball">12</span><span class="num-ball">13</span><span class="num-ball">14</span><span class="num-ball">18</span><span class="num-ball">25</span></td><td><span class="lettre-badge">D</span></td><td><span class="chip chip-blue">1 · 7 · 18</span></td><td style="color:#8b9db0">3/10</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569">
+      <strong>Bilan :</strong> 2× rang 6, 1× rang 0L (lettre E) → <strong>3€ de gains pour 5€ misés</strong> (perte nette 2€).
+      Points positifs : le 15h avait 5/10 numéros corrects et le 14h avait 6/10 avec les numéros phares 18-19-20-23-24.
+      Le triplet star <strong>18-19</strong> était présent au 14h, <strong>18-23</strong> au 17h. La lettre <strong>E</strong> est tombée au 18h ✓.
+    </div>
+  </div>
+
+  <!-- Sélecteur de taille -->
+  <div class="box" style="margin-bottom:16px">
+    <div class="box-title"><span>🔢</span> Co-occurrences — numéros qui sortent ensemble dans le même tirage</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="combo-size-btns">
+      <button class="btn btn-primary" style="font-size:12px" onclick="showCombos(2)">Paires (2)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(3)">Triplets (3)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(4)">Quadruplets (4)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(5)">Quintuplets (5)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(6)">Sextuplets (6)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(7)">Septuplets (7)</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showCombos(8)">Octuplets (8)</button>
+    </div>
+    <div id="combo-info" style="font-size:12px;color:#6b7a8d;margin-bottom:12px"></div>
+    <div class="pairs-grid" id="combo-container" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))"></div>
+  </div>
+
+  <!-- Séquences consécutives -->
+  <div class="box">
+    <div class="box-title"><span>➡️</span> Séquences consécutives — numéros qui sortent EN SUITE dans le même tirage</div>
+    <div style="font-size:12px;color:#6b7a8d;margin-bottom:16px">Ex: 18-19-20 = les numéros 18, 19 et 20 sont sortis ensemble dans le même tirage</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="consec-size-btns">
+      <button class="btn btn-primary" style="font-size:12px" onclick="showConsec(2)">Suites de 2</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(3)">Suites de 3</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(4)">Suites de 4</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(5)">Suites de 5</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(6)">Suites de 6</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(7)">Suites de 7</button>
+      <button class="btn" style="background:#e2e8f0;color:#475569;font-size:12px" onclick="showConsec(8)">Suites de 8</button>
+    </div>
+    <div id="consec-info" style="font-size:12px;color:#6b7a8d;margin-bottom:12px"></div>
+    <div class="pairs-grid" id="consec-container" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
   </div>
 </div>
 
@@ -540,6 +606,7 @@ function showPage(name) {
   });
   if (name === 'stats' && !statsData) loadStats();
   if (name === 'historique' && !allHistory.length) loadHistorique();
+  if (name === 'combos') loadCombos();
   if (name === 'strategie') loadStrategie();
 }
 
@@ -891,6 +958,84 @@ async function runScript(type) {
   }
   btn.disabled = false;
   btn.innerHTML = orig;
+}
+
+// ─── COMBINAISONS ─────────────────────────────────────────────
+let combosData = null;
+
+async function loadCombos() {
+  if (combosData) return;
+  try {
+    combosData = await fetch('/api/combos').then(r => r.json());
+    showCombos(2);
+    showConsec(2);
+  } catch(e) { toast('❌ Lance node analyse_combos.js'); }
+}
+
+const COMBO_COLORS = {2:'#4f8cff',3:'#10b981',4:'#f59e0b',5:'#8b5cf6',6:'#ef4444',7:'#06b6d4',8:'#f97316'};
+
+function showCombos(k) {
+  if (!combosData) return;
+  const data = combosData.combos[k];
+  if (!data) return;
+
+  // Mettre à jour les boutons
+  document.querySelectorAll('#combo-size-btns .btn').forEach((b,i) => {
+    b.style.background = i === k-2 ? '#1a2b4a' : '#e2e8f0';
+    b.style.color = i === k-2 ? '#fff' : '#475569';
+  });
+
+  const color = COMBO_COLORS[k];
+  document.getElementById('combo-info').innerHTML =
+    `<strong>${data.total.toLocaleString('fr-FR')}</strong> combinaisons distinctes trouvées | Attendu théorique : <strong>${data.exp}</strong> fois par combinaison | Maximum observé : <strong>${data.maxCount}x</strong>`;
+
+  const container = document.getElementById('combo-container');
+  container.innerHTML = data.top20.map((item, i) => {
+    const nums = item.combo.split('-');
+    const balls = nums.map(n => `<span class="num-ball" style="background:#e8f0fe;color:${color};font-size:11px;width:22px;height:22px">${n}</span>`).join('');
+    const deltaColor = item.delta > 0 ? '#16a34a' : '#dc2626';
+    return `<div class="pair-card" style="border-top:3px solid ${color}">
+      <div style="font-size:11px;color:#8b9db0;margin-bottom:4px">#${i+1}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-bottom:6px">${balls}</div>
+      <div class="pair-count" style="color:${color}">${item.count}×</div>
+      <div class="pair-delta" style="color:${deltaColor}">${item.delta > 0?'+':''}${item.delta} vs attendu</div>
+    </div>`;
+  }).join('');
+}
+
+function showConsec(k) {
+  if (!combosData) return;
+  const entries = combosData.consecutives[k] || [];
+
+  // Mettre à jour les boutons
+  document.querySelectorAll('#consec-size-btns .btn').forEach((b,i) => {
+    b.style.background = i === k-2 ? '#1a2b4a' : '#e2e8f0';
+    b.style.color = i === k-2 ? '#fff' : '#475569';
+  });
+
+  const color = COMBO_COLORS[k];
+  document.getElementById('consec-info').innerHTML =
+    entries.length > 0
+      ? `<strong>${entries.length}</strong> suites consécutives de ${k} numéros trouvées`
+      : `Aucune suite consécutive de ${k} numéros trouvée dans les 224 tirages`;
+
+  const container = document.getElementById('consec-container');
+  container.innerHTML = entries.slice(0, 20).map((item, i) => {
+    const nums = item.combo.split('-');
+    const balls = nums.map(n => `<span class="num-ball" style="background:#fef3c7;color:#b45309;font-size:11px;width:22px;height:22px">${n}</span>`).join('');
+    return `<div class="pair-card" style="border-top:3px solid ${color}">
+      <div style="font-size:11px;color:#8b9db0;margin-bottom:4px">#${i+1}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-bottom:6px">${balls}</div>
+      <div style="font-size:11px;color:#b45309;margin-bottom:2px">${nums[0]} → ${nums[nums.length-1]}</div>
+      <div class="pair-count" style="color:${color}">${item.count}×</div>
+    </div>`;
+  }).join('');
+
+  if (entries.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#8b9db0">
+      Aucune suite consécutive de ${k} numéros dans l'historique. (Très rare pour ${k} numéros consécutifs.)
+    </div>`;
+  }
 }
 
 // ─── STRATÉGIE ────────────────────────────────────────────────

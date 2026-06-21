@@ -65,6 +65,13 @@ app.get('/api/dashboard', (req, res) => {
   });
 });
 
+// Combinaisons étendues
+app.get('/api/combos', (req, res) => {
+  const combos = readJson('crescendo_combos.json');
+  if (!combos) return res.status(404).json({ error: 'Lance node analyse_combos.js' });
+  res.json(combos);
+});
+
 // Historique complet
 app.get('/api/historique', (req, res) => {
   const rows = readCsv('crescendo_historique_enrichi.csv');
