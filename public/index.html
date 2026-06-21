@@ -127,11 +127,91 @@ tr:hover td{background:#f8fafc}
 .pair-count{font-size:11px;color:#4f8cff;margin-top:2px;font-weight:600}
 .pair-delta{font-size:10px;color:#8b9db0}
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE MOBILE ── */
 @media(max-width:768px){
-  .sidebar{width:60px}
+  /* Sidebar réduite en barre d'icônes */
+  .sidebar{width:56px}
+  .sidebar-logo{padding:12px 8px}
+  .sidebar-logo h1{font-size:13px}
   .sidebar-logo p,.nav-item span:not(.icon),.sidebar-footer{display:none}
-  .main{margin-left:60px}
+  .nav-item{padding:12px;justify-content:center}
+  .nav-item .icon{font-size:20px;width:auto}
+  .main{margin-left:56px;padding:12px}
+
+  /* Titres */
+  .page-title{font-size:17px;margin-bottom:14px}
+
+  /* Cards sur 2 colonnes (au lieu d'auto-fill) */
+  .cards{grid-template-columns:1fr 1fr;gap:10px}
+  .card-value{font-size:22px}
+
+  /* Grilles 2 colonnes → 1 colonne */
+  div[style*="grid-template-columns:1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr"]{
+    grid-template-columns:1fr !important;
+  }
+  div[style*="grid-template-columns:1fr 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr 1fr"]{
+    grid-template-columns:1fr !important;
+  }
+  div[style*="grid-template-columns:repeat(4"]{
+    grid-template-columns:1fr 1fr !important;
+  }
+
+  /* Jackpot section */
+  .jackpot-amount{font-size:26px}
+
+  /* Tables : scroll horizontal */
+  table{font-size:11px}
+  th,td{padding:6px 8px}
+  .num-ball{width:22px;height:22px;font-size:10px;margin:1px}
+  .box{padding:14px}
+  .box-title{font-size:13px}
+
+  /* Générateur slider */
+  input[type=range]{width:100%}
+  .form-row{flex-direction:column;align-items:stretch}
+  .form-group input,.form-group select{width:100%}
+  .btn{width:100%;text-align:center}
+
+  /* Grilles de résultats */
+  .grilles-grid{grid-template-columns:1fr}
+  .grille-card{padding:14px}
+
+  /* Charts */
+  #freq-chart-container{height:220px}
+  div[style*="height:300px"] canvas,
+  div[style*="height:200px"] canvas{height:auto !important}
+
+  /* Paires / combos grid */
+  .pairs-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr)) !important}
+
+  /* Tables history */
+  #history-table th:nth-child(7),
+  #history-table td:nth-child(7){display:none}
+
+  /* Sessions table */
+  #sessions-table th:nth-child(8),
+  #sessions-table td:nth-child(8){display:none}
+
+  /* Stratégie budget grid */
+  #budget-annuel{grid-template-columns:1fr !important}
+
+  /* Proba table scroll */
+  #probas-table{font-size:11px}
+
+  /* Analyse grille 20/06 - masquer colonne numéros communs détaillés */
+  table td .chip{font-size:10px;padding:2px 6px}
+}
+
+/* Mobile très petit (< 480px) */
+@media(max-width:480px){
+  .cards{grid-template-columns:1fr}
+  .main{padding:8px}
+  .jackpot-amount{font-size:22px}
+  th,td{padding:5px 6px}
+  .num-ball{width:20px;height:20px;font-size:9px}
+  .page-title{font-size:15px}
 }
 </style>
 </head>
