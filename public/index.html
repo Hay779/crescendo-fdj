@@ -456,57 +456,67 @@ tr:hover td{background:#f8fafc}
 
 <!-- ══════════════ SIMULATION ══════════════ -->
 <div id="page-simulation" class="page">
-  <div class="page-title">Simulation <span style="font-size:13px;color:#8b9db0;font-weight:400">— combien miser, probabilités réelles, stratégie rang 8→jackpot</span></div>
+  <div class="page-title">Simulation <span style="font-size:13px;color:#8b9db0;font-weight:400">— 7 tirages/samedi · 5 grilles × multiplicateur · tous jackpots</span></div>
+
+  <!-- Principe -->
+  <div class="box" style="margin-bottom:16px;border-left:4px solid #1a2b4a;background:#f8fafc">
+    <div style="font-size:13px;color:#1a2332;line-height:2">
+      <strong>Principe :</strong> Tu joues les <strong>7 tirages chaque samedi</strong> (13h→19h), avec tes <strong>5 grilles jouées N fois chacune</strong>.<br>
+      Budget 5€/tirage = 1× par grille | Budget 100€/tirage = 20× | Budget 500€/tirage = 100× | Budget 1000€/tirage = 200×<br>
+      Si une grille gagne, tu touches <strong>N × le gain du rang</strong>.
+    </div>
+  </div>
 
   <!-- Paramètres -->
   <div class="box" style="margin-bottom:16px">
-    <div class="box-title"><span>⚙️</span> Paramètres de simulation</div>
+    <div class="box-title"><span>⚙️</span> Paramètres</div>
     <div class="form-row">
       <div class="form-group">
-        <label>Budget par session (€)</label>
-        <input type="number" id="sim-budget" value="100" min="5" max="500" step="5" oninput="updateSim()">
+        <label>Budget par tirage (€)</label>
+        <select id="sim-budget" onchange="updateSim()">
+          <option value="5">5 € (1× par grille)</option>
+          <option value="100" selected>100 € (20× par grille)</option>
+          <option value="500">500 € (100× par grille)</option>
+          <option value="1000">1 000 € (200× par grille)</option>
+        </select>
       </div>
       <div class="form-group">
-        <label>Jackpot en jeu (€)</label>
+        <label>Jackpot moyen du samedi</label>
         <select id="sim-jackpot" onchange="updateSim()">
-          <option value="700000">700 000 € (MAX)</option>
-          <option value="600000">600 000 €</option>
-          <option value="500000">500 000 €</option>
-          <option value="400000">400 000 €</option>
+          <option value="100000">100 000 € (13h)</option>
+          <option value="200000">200 000 €</option>
           <option value="300000">300 000 €</option>
+          <option value="400000">400 000 €</option>
+          <option value="500000">500 000 €</option>
+          <option value="600000">600 000 €</option>
+          <option value="700000" selected>700 000 € (MAX / 19h)</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Nombre de sessions simulées</label>
+        <label>Samedis simulés</label>
         <select id="sim-sessions" onchange="runMonteCarlo()">
-          <option value="50">50 sessions</option>
-          <option value="100" selected>100 sessions</option>
-          <option value="200">200 sessions</option>
-          <option value="500">500 sessions</option>
+          <option value="10">10 samedis</option>
+          <option value="26">26 samedis (6 mois)</option>
+          <option value="52" selected>52 samedis (1 an)</option>
+          <option value="104">104 samedis (2 ans)</option>
+          <option value="260">260 samedis (5 ans)</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="runMonteCarlo()">▶ Lancer la simulation</button>
+      <button class="btn btn-primary" onclick="runMonteCarlo()">▶ Simuler</button>
     </div>
-    <div id="sim-grilles-info" style="font-size:13px;color:#1a2332;margin-top:8px;padding:10px;background:#f8fafc;border-radius:8px"></div>
+    <div id="sim-grilles-info" style="font-size:13px;color:#1a2332;margin-top:10px;padding:12px;background:#eff6ff;border-radius:8px;border-left:3px solid #4f8cff"></div>
   </div>
 
-  <!-- Stratégie pour rang 8+ -->
-  <div class="box" style="margin-bottom:16px;border-left:4px solid #f59e0b">
-    <div class="box-title"><span>🎯</span> Stratégie rang 8 → Jackpot : comment maximiser ses chances</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px" id="strat-rang-cards"></div>
-    <div style="margin-top:16px;padding:12px;background:#fffbeb;border-radius:8px;font-size:13px;color:#92400e" id="strat-conseil"></div>
-  </div>
-
-  <!-- Table probabilités complète -->
+  <!-- KPIs par tirage / samedi / an -->
   <div class="box" style="margin-bottom:16px">
-    <div class="box-title"><span>📊</span> Probabilités réelles par rang avec votre budget</div>
+    <div class="box-title"><span>📊</span> Probabilités & gains — par tirage · par samedi (×7) · par an (×364)</div>
     <div style="overflow-x:auto">
-      <table id="sim-proba-table">
+      <table id="sim-proba-table" style="font-size:12px">
         <thead>
-          <tr>
-            <th>Rang</th><th>Gain unitaire</th>
-            <th>P par grille</th><th>P avec <span id="th-budget">100</span> grilles</th>
-            <th>Espérance gain</th><th>Sessions pour 50%</th><th>Sessions pour 90%</th>
+          <tr style="background:#f8fafc">
+            <th>Rang</th><th>Gain si victoire</th>
+            <th>P / tirage</th><th>P / samedi (7 tirages)</th><th>P / an (364 tirages)</th>
+            <th>Espérance/tirage</th><th>Espérance/samedi</th><th>Espérance/an</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -514,24 +524,38 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
+  <!-- Comparaison budgets -->
+  <div class="box" style="margin-bottom:16px">
+    <div class="box-title"><span>💰</span> Comparaison des budgets — tous les jackpots inclus</div>
+    <div style="overflow-x:auto">
+      <table id="plan-table" style="font-size:12px">
+        <thead>
+          <tr style="background:#f8fafc">
+            <th>Budget/tirage</th><th>×/grille</th><th>Coût/samedi</th><th>Coût/an</th>
+            <th>P(rang 7) / samedi</th><th>P(rang 8) / samedi</th><th>Gain rang 8</th>
+            <th>Espérance/an</th>
+          </tr>
+        </thead>
+        <tbody id="plan-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:#6b7a8d">
+      * Jackpot à 700K pour le calcul des espérances. Pour rang 8 : gain = budget × 50€ / 5.
+    </div>
+  </div>
+
   <!-- Monte Carlo -->
   <div class="box" style="margin-bottom:16px">
-    <div class="box-title"><span>🎲</span> Monte Carlo — simulation sur <span id="sim-n-label">100</span> sessions</div>
+    <div class="box-title"><span>🎲</span> Monte Carlo — simulation sur <span id="sim-n-label">52</span> samedis (<span id="sim-tirages-label">364</span> tirages)</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="mc-kpis"></div>
-    <div style="height:280px"><canvas id="mc-chart"></canvas></div>
+    <div style="height:300px"><canvas id="mc-chart"></canvas></div>
     <div style="margin-top:12px" id="mc-details"></div>
   </div>
 
-  <!-- Plan d'action par budget -->
-  <div class="box">
-    <div class="box-title"><span>💡</span> Plan d'action selon votre budget par session</div>
-    <table id="plan-table">
-      <thead>
-        <tr><th>Budget/session</th><th>Grilles</th><th>Stratégie</th><th>P(rang 8+)</th><th>P(rang 7+)</th><th>Sessions/an*</th><th>Coût/an</th></tr>
-      </thead>
-      <tbody id="plan-body"></tbody>
-    </table>
-    <div style="font-size:11px;color:#8b9db0;margin-top:8px">* Sessions à jackpot ≥ 500K : ~36 par an</div>
+  <!-- Stratégie jackpots bas -->
+  <div class="box" style="border-left:4px solid #f59e0b">
+    <div class="box-title"><span>💡</span> Stratégie rang 8+ avec différents jackpots</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px" id="strat-rang-cards"></div>
   </div>
 </div>
 
@@ -1189,170 +1213,165 @@ async function runScript(type) {
 
 // ─── SIMULATION ───────────────────────────────────────────────
 const C_25_10 = 3268760;
+const TIRAGES_PAR_SAMEDI = 7;
 let mcChart = null;
 
-// Probabilités par rang par grille (théoriques)
+// Probabilités par rang PAR GRILLE (théoriques)
 const RANGS = [
-  { code:'10',  label:'Rang 10 — Jackpot',    p: 1/C_25_10,               gainBase: null  }, // jackpot dynamique
-  { code:'9L',  label:'Rang 9L (+lettre)',     p: 150/(C_25_10*6),         gainBase: 1000  },
-  { code:'9',   label:'Rang 9',               p: 150/C_25_10,             gainBase: 500   },
-  { code:'8L',  label:'Rang 8L (+lettre)',     p: 4725/(C_25_10*6),        gainBase: 100   },
-  { code:'8',   label:'Rang 8',               p: 4725/C_25_10,            gainBase: 50    },
-  { code:'7L',  label:'Rang 7L (+lettre)',     p: 56700/(C_25_10*6),       gainBase: 14    },
-  { code:'7',   label:'Rang 7',               p: 56700/C_25_10,           gainBase: 7     },
-  { code:'6L',  label:'Rang 6L (+lettre)',     p: 286650/(C_25_10*6),      gainBase: 2     },
-  { code:'6',   label:'Rang 6',               p: 286650/C_25_10,          gainBase: 1     },
-  { code:'0L',  label:'Rang 0L (lettre seule)',p: 1/6,                     gainBase: 1.1   },
+  { code:'10',  label:'Rang 10 — Jackpot',     p: 1/C_25_10,               gainBase: null },
+  { code:'9L',  label:'Rang 9L (+lettre)',      p: 150/(C_25_10*6),         gainBase: 1000 },
+  { code:'9',   label:'Rang 9',                p: 150/C_25_10,             gainBase: 500  },
+  { code:'8L',  label:'Rang 8L (+lettre)',      p: 4725/(C_25_10*6),        gainBase: 100  },
+  { code:'8',   label:'Rang 8',                p: 4725/C_25_10,            gainBase: 50   },
+  { code:'7L',  label:'Rang 7L (+lettre)',      p: 56700/(C_25_10*6),       gainBase: 14   },
+  { code:'7',   label:'Rang 7',                p: 56700/C_25_10,           gainBase: 7    },
+  { code:'6L',  label:'Rang 6L (+lettre)',      p: 286650/(C_25_10*6),      gainBase: 2    },
+  { code:'6',   label:'Rang 6',                p: 286650/C_25_10,          gainBase: 1    },
+  { code:'0L',  label:'Rang 0L (lettre seule)', p: 1/6,                     gainBase: 1.1  },
 ];
 
 function pAtLeastOne(p, n) { return 1 - Math.pow(1-p, n); }
-function sessionsFor(p, target) {
-  if(p <= 0) return Infinity;
-  return Math.ceil(Math.log(1-target) / Math.log(1-p));
+function fmtNum(n) { if(n===Infinity||isNaN(n)) return '∞'; return Math.round(n).toLocaleString('fr-FR'); }
+function fmtE(n) { // format euros propre
+  if(n >= 1000000) return (n/1000000).toFixed(2)+'M€';
+  if(n >= 1000)    return fmtNum(n)+'€';
+  return n.toFixed(2)+'€';
 }
-function fmtNum(n) { return n.toLocaleString('fr-FR'); }
-function fmtPct(p, decimals=2) {
-  if(p < 0.0001) return p.toFixed(6)+'%';
-  if(p < 0.01)   return p.toFixed(4)+'%';
-  if(p < 1)      return p.toFixed(decimals)+'%';
+function fmtPct(p, d=2) {
+  if(p <= 0) return '0%';
+  if(p < 0.001) return p.toFixed(6)+'%';
+  if(p < 0.01)  return p.toFixed(4)+'%';
+  if(p < 1)     return p.toFixed(d)+'%';
   return p.toFixed(1)+'%';
 }
 
 function updateSim() {
   const budget  = parseInt(document.getElementById('sim-budget').value) || 100;
   const jackpot = parseInt(document.getElementById('sim-jackpot').value) || 700000;
-  const nGrids  = budget; // 1€ par grille
+  const mult    = budget / 5;  // multiplicateur : 5 grilles × mult fois
+  const nGrids  = 5;           // toujours 5 grilles de base (Roue)
+  const T       = TIRAGES_PAR_SAMEDI; // 7 tirages/samedi
 
-  document.getElementById('th-budget').textContent = nGrids;
+  // Info principale
   document.getElementById('sim-grilles-info').innerHTML =
-    `Avec <strong>${budget}€</strong> → <strong>${nGrids} grilles</strong> jouées (1€/grille) · Jackpot en jeu : <strong>${jackpot.toLocaleString('fr-FR')}€</strong> · Stratégie Roue : noyau de 8 nums communs + ${nGrids-8} positions variables`;
+    `<strong>5 grilles</strong> jouées <strong>${mult}× chacune</strong> = <strong>${budget}€ par tirage</strong> ·
+     <strong>${budget*T}€ par samedi</strong> (7 tirages) ·
+     <strong>${(budget*T*52).toLocaleString('fr-FR')}€ par an</strong> (52 samedis) ·
+     Si une grille gagne rang 8 : tu touches <strong>${(mult*50).toLocaleString('fr-FR')}€</strong>`;
 
-  // ── Table probabilités ──
+  // ── Table probabilités par tirage / samedi / an ──
   const tbody = document.querySelector('#sim-proba-table tbody');
   tbody.innerHTML = RANGS.map(r => {
-    const gain    = r.code === '10' ? jackpot : r.gainBase;
-    const pSess   = pAtLeastOne(r.p, nGrids) * 100;
-    const esp     = nGrids * r.p * gain;
-    const s50     = sessionsFor(pSess/100, 0.5);
-    const s90     = sessionsFor(pSess/100, 0.9);
+    const gainUnit = r.code === '10' ? jackpot : r.gainBase;
+    const gainAvecMult = gainUnit * mult; // gain si victoire avec multiplicateur
 
-    const color   = pSess > 5 ? '#16a34a' : pSess > 0.5 ? '#d97706' : pSess > 0.01 ? '#2563eb' : '#8b9db0';
-    const s50str  = s50 > 999999 ? '> 999 999' : fmtNum(s50);
-    const s90str  = s90 > 999999 ? '> 999 999' : fmtNum(s90);
+    // Par tirage : P(au moins une des 5 grilles gagne ce rang)
+    const pTirage  = pAtLeastOne(r.p, nGrids) * 100;
+    // Par samedi : P(au moins un tirage gagne sur les 7)
+    const pSamedi  = pAtLeastOne(pTirage/100, T) * 100;
+    // Par an : P(au moins un samedi gagne sur 52)
+    const pAn      = pAtLeastOne(pSamedi/100, 52) * 100;
 
+    // Espérances (nGrids grilles × mult × tirage)
+    const espTirage = nGrids * r.p * gainAvecMult;
+    const espSamedi = espTirage * T;
+    const espAn     = espSamedi * 52;
+
+    const c = pTirage > 5 ? '#16a34a' : pTirage > 0.5 ? '#d97706' : pTirage > 0.01 ? '#2563eb' : '#8b9db0';
     return `<tr>
       <td><strong>${r.label}</strong></td>
-      <td>${fmtNum(gain)} €</td>
-      <td style="color:#8b9db0">${fmtPct(r.p*100, 6)}</td>
-      <td style="color:${color};font-weight:700">${fmtPct(pSess)}</td>
-      <td>${esp >= 1 ? fmtNum(Math.round(esp))+' €' : esp.toFixed(2)+' €'}</td>
-      <td>${s50str}</td>
-      <td>${s90str}</td>
+      <td style="font-weight:700;color:#1a2332">${fmtE(gainAvecMult)}</td>
+      <td style="color:${c};font-weight:700">${fmtPct(pTirage)}</td>
+      <td style="color:${c};font-weight:700">${fmtPct(pSamedi)}</td>
+      <td style="color:${pAn>50?'#16a34a':c};font-weight:700">${fmtPct(pAn)}</td>
+      <td>${fmtE(espTirage)}</td>
+      <td>${fmtE(espSamedi)}</td>
+      <td style="font-weight:600">${fmtE(espAn)}</td>
     </tr>`;
   }).join('');
 
-  // ── Stratégie rang 8+ ──
-  const p8   = pAtLeastOne(4725/C_25_10, nGrids)*100;
-  const p9   = pAtLeastOne(150/C_25_10, nGrids)*100;
-  const pJP  = pAtLeastOne(1/C_25_10, nGrids)*100;
-
-  document.getElementById('strat-rang-cards').innerHTML = `
-    <div style="background:#fff7ed;border-radius:10px;padding:16px;border:1px solid #fed7aa">
-      <div style="font-weight:700;color:#c2410c;margin-bottom:8px">🎯 Viser Rang 8 (~50€)</div>
-      <div style="font-size:13px;color:#1a2332;line-height:1.8">
-        <div>P/session : <strong style="color:#c2410c">${fmtPct(p8)}</strong></div>
-        <div>Sessions pour 50% : <strong>${fmtNum(sessionsFor(p8/100, 0.5))}</strong></div>
-        <div>Sessions pour 90% : <strong>${fmtNum(sessionsFor(p8/100, 0.9))}</strong></div>
-        <div style="margin-top:8px;font-size:12px;color:#6b7a8d">
-          Stratégie : ${nGrids >= 50 ? `${nGrids} grilles/session = bonne couverture` : `Passer à 50+ grilles pour P>${fmtPct(pAtLeastOne(4725/C_25_10, 50)*100)}`}
-        </div>
-      </div>
-    </div>
-    <div style="background:#eff6ff;border-radius:10px;padding:16px;border:1px solid #bfdbfe">
-      <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px">⭐ Viser Rang 9 (~500€)</div>
-      <div style="font-size:13px;color:#1a2332;line-height:1.8">
-        <div>P/session : <strong style="color:#1d4ed8">${fmtPct(p9)}</strong></div>
-        <div>Sessions pour 50% : <strong>${fmtNum(sessionsFor(p9/100, 0.5))}</strong></div>
-        <div>Sessions pour 90% : <strong>${fmtNum(sessionsFor(p9/100, 0.9))}</strong></div>
-        <div style="margin-top:8px;font-size:12px;color:#6b7a8d">
-          Nécessite de la patience — mais réaliste sur plusieurs années
-        </div>
-      </div>
-    </div>
-    <div style="background:#f0fdf4;border-radius:10px;padding:16px;border:1px solid #bbf7d0">
-      <div style="font-weight:700;color:#15803d;margin-bottom:8px">🏆 Jackpot (${(jackpot/1000).toFixed(0)}K€)</div>
-      <div style="font-size:13px;color:#1a2332;line-height:1.8">
-        <div>P/session : <strong style="color:#15803d">${fmtPct(pJP)}</strong></div>
-        <div>Sessions pour 10% : <strong>${fmtNum(sessionsFor(pJP/100, 0.1))}</strong></div>
-        <div>Sessions pour 50% : <strong>${fmtNum(sessionsFor(pJP/100, 0.5))}</strong></div>
-        <div style="margin-top:8px;font-size:12px;color:#6b7a8d">
-          Toujours jouer UNIQUEMENT à 700K pour multiplier par 7 le gain potentiel
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.getElementById('strat-conseil').innerHTML = `
-    <strong>💡 Conseil clé :</strong> Avec ${nGrids} grilles/session, vous avez
-    <strong>${fmtPct(p8)}</strong> de chance de gagner rang 8 (~50€) à chaque session.
-    Pour <strong>doubler vos chances de rang 8+</strong> : il faut ${fmtNum(Math.ceil(nGrids * Math.log(2)/Math.log(C_25_10/4725)))} grilles
-    (soit ${fmtNum(Math.ceil(nGrids * Math.log(2)/Math.log(C_25_10/4725)))}€/session).
-    ${nGrids < 50 ? `<br>Avec <strong>50€/session</strong> → P(rang 8) = ${fmtPct(pAtLeastOne(4725/C_25_10,50)*100)} | Avec <strong>100€</strong> → ${fmtPct(pAtLeastOne(4725/C_25_10,100)*100)} | Avec <strong>200€</strong> → ${fmtPct(pAtLeastOne(4725/C_25_10,200)*100)}` : ''}
-    <br>La stratégie Roue (noyau commun) multiplie l'efficacité : si les 8 numéros du noyau sortent, toutes vos ${nGrids} grilles scorent au rang 8 simultanément.
-  `;
-
-  // ── Plan d'action ──
-  const plans = [5,10,20,50,100,200].map(b => {
-    const ng = b;
-    const p8s = pAtLeastOne(4725/C_25_10, ng)*100;
-    const p7s = pAtLeastOne(56700/C_25_10, ng)*100;
-    const sessAn = 36; // sessions 500K+/an
-    return `<tr ${b==budget ? 'style="background:#eff6ff;font-weight:700"' : ''}>
-      <td>${b}€/session${b==budget ? ' ← vous' : ''}</td>
-      <td>${ng} grilles</td>
-      <td>${ng<=5?'Base (peu efficace)':ng<=20?'Standard':ng<=50?'Bonne couverture':'Haute couverture'}</td>
-      <td style="color:${p8s>2?'#16a34a':p8s>0.5?'#d97706':'#8b9db0'}">${fmtPct(p8s)}</td>
-      <td style="color:${p7s>10?'#16a34a':'#d97706'}">${fmtPct(p7s)}</td>
-      <td>${sessAn}</td>
-      <td>${fmtNum(b*sessAn)} €</td>
+  // ── Table comparaison budgets ──
+  const budgets = [5, 100, 500, 1000];
+  document.getElementById('plan-body').innerHTML = budgets.map(b => {
+    const m   = b / 5;
+    const p7t  = pAtLeastOne(pAtLeastOne(56700/C_25_10, nGrids), T)*100;
+    const p8t  = pAtLeastOne(pAtLeastOne(4725/C_25_10, nGrids), T)*100;
+    const gainR8 = m * 50;
+    // Espérance annuelle totale (tous rangs)
+    const espAn = RANGS.reduce((s, r) => {
+      const g = r.code === '10' ? jackpot : r.gainBase;
+      return s + nGrids * r.p * g * m * T * 52;
+    }, 0);
+    const coutAn = b * T * 52;
+    const isCurrent = b === budget;
+    return `<tr style="${isCurrent?'background:#eff6ff;font-weight:700':''}">
+      <td>${b}€/tirage${isCurrent?' ◀ vous':''}</td>
+      <td>${m}×</td>
+      <td>${fmtE(b*T)}</td>
+      <td>${fmtE(coutAn)}</td>
+      <td style="color:${p7t>30?'#16a34a':'#d97706'}">${fmtPct(p7t)}</td>
+      <td style="color:${p8t>5?'#16a34a':'#d97706'}">${fmtPct(p8t)}</td>
+      <td style="color:#1a2332;font-weight:700">${fmtE(gainR8)}</td>
+      <td style="color:#6b7a8d">${fmtE(espAn)} <span style="font-size:10px">(${((espAn/coutAn)*100).toFixed(0)}%)</span></td>
     </tr>`;
-  });
-  document.getElementById('plan-body').innerHTML = plans.join('');
+  }).join('');
+
+  // ── Stratégie rang 8+ par jackpot ──
+  const jackpots = [{j:100000,l:'100K€ (13h)'},{j:400000,l:'400K€'},{j:700000,l:'700K€ (MAX)'}];
+  document.getElementById('strat-rang-cards').innerHTML = jackpots.map(({j,l}) => {
+    const gainR8  = (budget/5) * 50;
+    const gainR9  = (budget/5) * 500;
+    const gainJP  = (budget/5) * j;
+    const p8Sam   = pAtLeastOne(pAtLeastOne(4725/C_25_10, nGrids), T)*100;
+    const p9Sam   = pAtLeastOne(pAtLeastOne(150/C_25_10, nGrids), T)*100;
+    const pJPSam  = pAtLeastOne(pAtLeastOne(1/C_25_10, nGrids), T)*100;
+    return `<div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0">
+      <div style="font-weight:700;color:#1a2332;margin-bottom:10px">Jackpot ${l}</div>
+      <div style="font-size:12px;line-height:2;color:#1a2332">
+        <div>Rang 8 → <strong>${fmtE(gainR8)}</strong> | P/sam : <strong style="color:#d97706">${fmtPct(p8Sam)}</strong></div>
+        <div>Rang 9 → <strong>${fmtE(gainR9)}</strong> | P/sam : <strong style="color:#2563eb">${fmtPct(p9Sam)}</strong></div>
+        <div>Jackpot → <strong>${fmtE(gainJP)}</strong> | P/sam : <strong style="color:#16a34a">${fmtPct(pJPSam)}</strong></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function runMonteCarlo() {
-  const budget   = parseInt(document.getElementById('sim-budget').value) || 100;
-  const jackpot  = parseInt(document.getElementById('sim-jackpot').value) || 700000;
-  const nSess    = parseInt(document.getElementById('sim-sessions').value) || 100;
-  const nGrids   = budget;
+  const budget  = parseInt(document.getElementById('sim-budget').value) || 100;
+  const jackpot = parseInt(document.getElementById('sim-jackpot').value) || 700000;
+  const nSam    = parseInt(document.getElementById('sim-sessions').value) || 52;
+  const mult    = budget / 5;
+  const nGrids  = 5;
 
-  document.getElementById('sim-n-label').textContent = nSess;
+  document.getElementById('sim-n-label').textContent = nSam;
+  document.getElementById('sim-tirages-label').textContent = nSam * TIRAGES_PAR_SAMEDI;
 
-  // Monte Carlo
+  // Monte Carlo : simuler nSam samedis × 7 tirages
   let totalSpent = 0, totalWon = 0;
   const cumulGains = [], cumulCosts = [], cumulNet = [];
-  const rangCounts = {};
-  RANGS.forEach(r => rangCounts[r.code] = 0);
+  const rangCounts = {}; RANGS.forEach(r => rangCounts[r.code] = 0);
+  let rangHauts = 0; // rang 8+
 
-  for(let s = 0; s < nSess; s++) {
-    totalSpent += nGrids;
-    let sessionWon = 0;
-
-    for(let g = 0; g < nGrids; g++) {
-      const r = Math.random();
-      let cumul = 0;
-      for(const rang of RANGS) {
-        cumul += rang.p;
-        if(r < cumul) {
-          const gain = rang.code === '10' ? jackpot : rang.gainBase;
-          sessionWon += gain;
-          totalWon   += gain;
-          rangCounts[rang.code]++;
-          break;
+  for(let s = 0; s < nSam; s++) {
+    for(let t = 0; t < TIRAGES_PAR_SAMEDI; t++) {
+      totalSpent += budget; // 5 grilles × mult fois = budget€
+      // Simuler 5 grilles × mult
+      for(let g = 0; g < nGrids; g++) {
+        for(let x = 0; x < mult; x++) {
+          const r = Math.random(); let cumul = 0;
+          for(const rang of RANGS) {
+            cumul += rang.p;
+            if(r < cumul) {
+              const gain = rang.code === '10' ? jackpot : rang.gainBase;
+              totalWon += gain;
+              rangCounts[rang.code]++;
+              if(['10','9L','9','8L','8'].includes(rang.code)) rangHauts++;
+              break;
+            }
+          }
         }
       }
     }
-
     cumulCosts.push(totalSpent);
     cumulGains.push(totalWon);
     cumulNet.push(totalWon - totalSpent);
@@ -1363,38 +1382,46 @@ function runMonteCarlo() {
 
   // KPIs
   document.getElementById('mc-kpis').innerHTML = `
-    <div class="card"><div class="card-label">Total misé</div><div class="card-value">${fmtNum(totalSpent)} €</div></div>
-    <div class="card ${totalWon>totalSpent?'green':'orange'}"><div class="card-label">Total gagné</div><div class="card-value">${fmtNum(Math.round(totalWon))} €</div></div>
-    <div class="card ${net>=0?'green':'orange'}"><div class="card-label">Gain net</div><div class="card-value">${net>=0?'+':''}${fmtNum(Math.round(net))} €</div><div class="card-sub">ROI: ${roi}%</div></div>
-    <div class="card"><div class="card-label">Rang 8+ obtenus</div><div class="card-value">${rangCounts['8']+(rangCounts['8L']||0)+(rangCounts['9']||0)+(rangCounts['9L']||0)+(rangCounts['10']||0)}</div><div class="card-sub">sur ${nSess} sessions</div></div>
+    <div class="card"><div class="card-label">Total misé</div><div class="card-value">${fmtE(totalSpent)}</div><div class="card-sub">${nSam} sam × ${TIRAGES_PAR_SAMEDI} tirages</div></div>
+    <div class="card ${totalWon>totalSpent?'green':'orange'}"><div class="card-label">Total gagné</div><div class="card-value">${fmtE(totalWon)}</div></div>
+    <div class="card ${net>=0?'green':'orange'}"><div class="card-label">Gain net</div><div class="card-value">${net>=0?'+':''}${fmtE(net)}</div><div class="card-sub">ROI: ${roi}%</div></div>
+    <div class="card accent"><div class="card-label">Rang 8+ obtenus</div><div class="card-value">${fmtNum(rangHauts)}</div><div class="card-sub">sur ${nSam*7} tirages</div></div>
   `;
 
-  // Rangs détaillés
+  // Détails rangs
   const details = RANGS.filter(r => rangCounts[r.code] > 0).map(r => {
-    const gain = r.code === '10' ? jackpot : r.gainBase;
-    return `<span class="chip chip-blue">${r.label}: ${rangCounts[r.code]}× (${fmtNum(rangCounts[r.code]*gain)}€)</span>`;
+    const g = r.code==='10' ? jackpot : r.gainBase;
+    return `<span class="chip chip-blue">${r.label}: <strong>${fmtNum(rangCounts[r.code])}×</strong> (${fmtE(rangCounts[r.code]*g)})</span>`;
   }).join(' ');
-  document.getElementById('mc-details').innerHTML = `<div style="line-height:2">${details}</div>`;
+  document.getElementById('mc-details').innerHTML = `<div style="line-height:2.2">${details}</div>`;
 
-  // Chart
-  const labels = Array.from({length:nSess},(_,i)=>i+1);
+  // Chart par samedi
+  const labels = Array.from({length:nSam},(_,i)=>`S${i+1}`);
+  const sampledCosts = [], sampledGains = [], sampledNet = [];
+  const step = Math.max(1, Math.floor(nSam/100));
+  for(let i=step-1; i<nSam; i+=step) {
+    const idx = Math.min(i, cumulCosts.length-1)*TIRAGES_PAR_SAMEDI;
+    // costs/gains are indexed by tirage, need to sample by samedi
+  }
+  const costBySam  = Array.from({length:nSam},(_,i)=>cumulCosts[Math.min((i+1)*7-1, cumulCosts.length-1)]);
+  const gainsBySam = Array.from({length:nSam},(_,i)=>cumulGains[Math.min((i+1)*7-1, cumulGains.length-1)]);
+  const netBySam   = Array.from({length:nSam},(_,i)=>cumulNet[Math.min((i+1)*7-1, cumulNet.length-1)]);
+
   if(mcChart) mcChart.destroy();
   mcChart = new Chart(document.getElementById('mc-chart').getContext('2d'), {
     type:'line',
-    data:{
-      labels,
+    data:{ labels,
       datasets:[
-        { label:'Gains cumulés', data:cumulGains, borderColor:'#16a34a', borderWidth:2, pointRadius:0, fill:false },
-        { label:'Coût cumulé',   data:cumulCosts,  borderColor:'#dc2626', borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false },
-        { label:'Net cumulé',    data:cumulNet,    borderColor:'#4f8cff', borderWidth:2, pointRadius:0, fill:true, backgroundColor:'rgba(79,140,255,0.05)' },
+        {label:'Gains cumulés', data:gainsBySam, borderColor:'#16a34a', borderWidth:2, pointRadius:0, fill:false},
+        {label:'Coût cumulé',   data:costBySam,  borderColor:'#dc2626', borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false},
+        {label:'Net cumulé',    data:netBySam,   borderColor:'#4f8cff', borderWidth:2, pointRadius:0, fill:true, backgroundColor:'rgba(79,140,255,0.05)'},
       ],
     },
-    options:{
-      responsive:true, maintainAspectRatio:false,
+    options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{position:'top'}},
       scales:{
-        y:{grid:{color:'#f0f4f8'}, ticks:{callback:v=>fmtNum(v)+'€'}},
-        x:{grid:{display:false}, ticks:{maxTicksLimit:10}}
+        y:{grid:{color:'#f0f4f8'}, ticks:{callback:v=>fmtE(v)}},
+        x:{grid:{display:false}, ticks:{maxTicksLimit:12}}
       }
     }
   });

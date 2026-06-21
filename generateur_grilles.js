@@ -200,9 +200,8 @@ function getJackpot() {
 
 function getNbGrids(jackpot, argNb) {
   if(argNb) return parseInt(argNb);
-  // Toujours 5 grilles par défaut (stratégie de base)
-  if(jackpot >= 300000) return 5;
-  return 0;
+  // Toujours 5 grilles — même pour les petits jackpots
+  return 5;
 }
 
 // ─── AFFICHAGE ────────────────────────────────────────────────
